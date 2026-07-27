@@ -3,6 +3,7 @@
   fetchFromGitHub,
   fetchurl,
   rustPlatform,
+  jq,
   pkg-config,
   stdenv,
   libiconv,
@@ -15,9 +16,10 @@ let
   # downloads model_prices_and_context_window.json at build time, which the
   # sandbox forbids. Pin the same litellm rev as upstream's flake.lock
   # (nodes.litellm.locked) and pass it via CCUSAGE_PRICING_JSON_PATH.
+  litellmRev = "34561482ed092d78c296cab7999486022af5a938";
   litellm-pricing = fetchurl {
-    url = "https://raw.githubusercontent.com/BerriAI/litellm/e59e34bed3670a6894d43129c2af16af28057d03/model_prices_and_context_window.json";
-    hash = "sha256-aPue4NpPpTKAtAYCI8S8ojmVCDtYr+mxwtYkOASEg3w=";
+    url = "https://raw.githubusercontent.com/BerriAI/litellm/${litellmRev}/model_prices_and_context_window.json";
+    hash = "sha256-jV/bRDNx+DNMKMsP9kvw82rRNexvdm7sdnzGLTt/gJI=";
   };
 in
 rustPlatform.buildRustPackage rec {
@@ -44,11 +46,26 @@ rustPlatform.buildRustPackage rec {
 
   doCheck = false;
 
-  nativeBuildInputs = [ pkg-config ];
+  nativeBuildInputs = [
+    jq
+    pkg-config
+  ];
 
   buildInputs = lib.optionals stdenv.hostPlatform.isDarwin [ libiconv ];
 
   env.CCUSAGE_PRICING_JSON_PATH = litellm-pricing;
+
+  # The pricing snapshot above is pinned by hand while build.rs resolves it from
+  # upstream's flake.lock, so the two drift apart on every version bump unless
+  # the mismatch is fatal.
+  preBuild = ''
+    lockedRev=$(jq -r .nodes.litellm.locked.rev ../flake.lock)
+    if [ "$lockedRev" != "${litellmRev}" ]; then
+      echo "error: litellm pricing pin ${litellmRev} != upstream flake.lock $lockedRev" >&2
+      echo "       update litellmRev and its hash in packages/ccusage/package.nix" >&2
+      exit 1
+    fi
+  '';
 
   doInstallCheck = true;
 
