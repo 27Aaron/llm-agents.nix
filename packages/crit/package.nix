@@ -25,7 +25,7 @@
 
   subPackages = [ "cmd/crit" ];
 
-  # cmd/crit's preflight tests (TestPreflightCheck_*) shell out to `git init`.
+  # Preflight tests shell out to `git init`.
   nativeCheckInputs = [ git ];
   preCheck = ''
     export HOME=$(mktemp -d)
@@ -34,9 +34,8 @@
     git config --global init.defaultBranch main
   '';
 
-  # The story-generation tests write a fake agent as a `#!/usr/bin/env bash`
-  # script and exec it. `/usr/bin/env` is absent from the sandbox, so the exec
-  # fails with ENOENT.
+  # Story-generation tests exec a fake `#!/usr/bin/env bash` agent script;
+  # /usr/bin/env is absent from the sandbox.
   checkFlags = [ "-skip=^TestStoryLLM_" ];
 
   ldflags = [
