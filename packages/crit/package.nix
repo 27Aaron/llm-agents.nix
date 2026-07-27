@@ -1,6 +1,7 @@
 {
   lib,
   flake,
+  bash,
   buildGoModule,
   go_1_26,
   fetchFromGitHub,
@@ -25,6 +26,13 @@
 
   subPackages = [ "cmd/crit" ];
 
+  # Story-generation tests exec fake agent scripts via /usr/bin/env, which is
+  # absent from the sandbox.
+  postPatch = ''
+    substituteInPlace cmd/crit/cli_handlers_story_llm_test.go \
+      --replace-fail '#!/usr/bin/env bash' '#!${lib.getExe bash}'
+  '';
+
   # Preflight tests shell out to `git init`.
   nativeCheckInputs = [ git ];
   preCheck = ''
@@ -33,10 +41,6 @@
     git config --global user.name crit
     git config --global init.defaultBranch main
   '';
-
-  # Story-generation tests exec a fake `#!/usr/bin/env bash` agent script;
-  # /usr/bin/env is absent from the sandbox.
-  checkFlags = [ "-skip=^TestStoryLLM_" ];
 
   ldflags = [
     "-s"
