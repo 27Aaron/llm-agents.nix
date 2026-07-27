@@ -31,6 +31,10 @@ buildNpmPackage (finalAttrs: {
 
   npmDepsHash = "sha256-bEYKQ/l0e+Vs8OqKUrVrAGNP6xtSdawrQ0p3bH7wUO4=";
 
+  # Upstream is an npm workspace monorepo; the published CLI lives in
+  # packages/cli.
+  npmWorkspace = "packages/cli";
+
   dontNpmBuild = true;
 
   # Only production dependencies are needed at runtime; devDependencies
@@ -39,6 +43,10 @@ buildNpmPackage (finalAttrs: {
     "--omit=dev"
     "--legacy-peer-deps"
   ];
+  # The CLI workspace's prepack script tries to rebuild dist/ with the
+  # devDependency toolchain we deliberately omit; the prebuilt bundle from
+  # the npm registry is copied in preInstall instead.
+  npmPackFlags = [ "--ignore-scripts" ];
   makeCacheWritable = true;
 
   nativeBuildInputs = [
@@ -59,13 +67,18 @@ buildNpmPackage (finalAttrs: {
   # npm pack (used by npmInstallHook) only ships paths listed in
   # package.json#files, so the prebuilt bundle has to be in place first.
   preInstall = ''
-    cp -r ${finalAttrs.dist}/dist dist
-    chmod -R u+w dist
+    cp -r ${finalAttrs.dist}/dist packages/cli/dist
+    chmod -R u+w packages/cli/dist
   '';
 
   postInstall = ''
     # Drop node-gyp intermediate objects that leak /build/ references.
-    rm -rf $out/lib/node_modules/claude-code-router/node_modules/better-sqlite3/build/Release/obj.target
+    rm -rf $out/lib/node_modules/claude-code-router-monorepo/node_modules/better-sqlite3/build/Release/obj.target
+    # The workspace symlinks point at packages/ sources that npm pack does
+    # not ship; the published dist/ bundle inlines those workspace packages.
+    rm -f $out/lib/node_modules/claude-code-router-monorepo/node_modules/.bin/ccr \
+      $out/lib/node_modules/claude-code-router-monorepo/node_modules/@musistudio/claude-code-router \
+      $out/lib/node_modules/claude-code-router-monorepo/node_modules/@claude-code-router/{core,electron,ui}
   '';
 
   # Upstream's 3.x CLI has no --version/-v flag and every subcommand aborts
