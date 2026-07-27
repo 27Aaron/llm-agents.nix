@@ -71,6 +71,23 @@ def resolve_litellm_rev(version: str) -> str:
     return str(rev)
 
 
+def pinned_litellm_rev() -> str:
+    """Read the litellm rev currently pinned in package.nix.
+
+    Returns:
+        The pinned 40-character rev.
+
+    Raises:
+        ValueError: If package.nix has no litellmRev pin.
+
+    """
+    match = LITELLM_REV_RE.search(PACKAGE_NIX.read_text())
+    if match is None:
+        msg = "package.nix has no litellmRev pin"
+        raise ValueError(msg)
+    return match.group(0).split('"')[1]
+
+
 def pin_litellm_pricing(rev: str, pricing_hash: str) -> None:
     """Rewrite the pinned litellm rev and its snapshot hash in package.nix.
 
@@ -104,22 +121,29 @@ def main() -> None:
 
     print(f"Current: {current}, Latest: {latest}")
 
-    if not should_update(current, latest):
-        print("Already up to date")
+    bump = should_update(current, latest)
+
+    # Re-pin against the version we will actually ship, whether or not there is
+    # a new release. The pin can be stale while the version is current -- that
+    # is how it drifted two months behind upstream -- so this must not hinge on
+    # a bump. Resolve over the network before touching package.nix so an
+    # unreachable tag cannot leave a half-written file.
+    target = latest if bump else current
+    rev = resolve_litellm_rev(target)
+
+    if rev == pinned_litellm_rev():
+        print(f"litellm pin already matches v{target} ({rev})")
+    else:
+        print(f"v{target} pins litellm {rev}, re-pinning")
+        pricing_url = (
+            f"https://raw.githubusercontent.com/BerriAI/litellm/{rev}/{PRICING_FILE}"
+        )
+        pricing_hash = calculate_url_hash(pricing_url)
+        pin_litellm_pricing(rev, pricing_hash)
+
+    if not bump:
+        print("Version already up to date")
         return
-
-    # Resolve everything over the network before touching package.nix, so a
-    # missing tag or an unreachable flake.lock cannot leave a half-bumped file.
-    rev = resolve_litellm_rev(latest)
-    print(f"v{latest} pins litellm {rev}")
-
-    print("Calculating LiteLLM pricing hash...")
-    pricing_url = (
-        f"https://raw.githubusercontent.com/BerriAI/litellm/{rev}/{PRICING_FILE}"
-    )
-    pricing_hash = calculate_url_hash(pricing_url)
-
-    pin_litellm_pricing(rev, pricing_hash)
 
     subprocess.run(
         ["nix-update", "--flake", "ccusage", "--version", latest],
