@@ -1205,6 +1205,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>ax</strong> - The AI-era curl: fetch, discover, extract. One command</summary>
+
+- **Source**: source
+- **License**: MIT
+- **Homepage**: https://github.com/yusukebe/ax
+- **Usage**: `nix run github:numtide/llm-agents.nix#ax -- --help`
+- **Nix**: [packages/ax/package.nix](packages/ax/package.nix)
+
+</details>
+<details>
 <summary><strong>cli-proxy-api</strong> - Unified proxy providing OpenAI/Gemini/Claude/Codex compatible APIs for AI coding CLI tools</summary>
 
 - **Source**: source
