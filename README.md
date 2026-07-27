@@ -444,6 +444,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>ironclaw</strong> - Secure personal AI assistant that protects your data and expands its capabilities on the fly</summary>
+
+- **Source**: source
+- **License**: MIT / Apache-2.0
+- **Homepage**: https://github.com/nearai/ironclaw
+- **Usage**: `nix run github:numtide/llm-agents.nix#ironclaw -- --help`
+- **Nix**: [packages/ironclaw/package.nix](packages/ironclaw/package.nix)
+
+</details>
+<details>
 <summary><strong>localgpt</strong> - Local AI assistant with persistent markdown memory, autonomous tasks, and semantic search</summary>
 
 - **Source**: source
