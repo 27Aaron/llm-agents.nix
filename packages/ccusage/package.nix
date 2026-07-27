@@ -78,6 +78,6 @@ rustPlatform.buildRustPackage rec {
     sourceProvenance = with lib.sourceTypes; [ fromSource ];
     maintainers = with maintainers; [ ryoppippi ];
     mainProgram = "ccusage";
-    platforms = platforms.all;
+    platforms = platforms.unix;
   };
 }
