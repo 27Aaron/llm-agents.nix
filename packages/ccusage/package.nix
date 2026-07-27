@@ -26,7 +26,7 @@ rustPlatform.buildRustPackage rec {
   version = "20.0.18";
 
   src = fetchFromGitHub {
-    owner = "ryoppippi";
+    owner = "ccusage";
     repo = "ccusage";
     tag = "v${version}";
     hash = "sha256-vtxaUrzX9389M6GIfdbgmt+Z3lwCb1XgcLtdNj1lFWo=";
@@ -43,6 +43,8 @@ rustPlatform.buildRustPackage rec {
     "ccusage"
   ];
 
+  # Workspace tests need fixture crates and insta snapshots that the tagged
+  # tarball builds cannot satisfy; upstream's own derivation skips them too.
   doCheck = false;
 
   nativeBuildInputs = [
@@ -56,6 +58,10 @@ rustPlatform.buildRustPackage rec {
   env.RUSTFLAGS = lib.optionalString stdenv.hostPlatform.isDarwin "-C link-arg=-Wl,-dead_strip_dylibs";
 
   env.CCUSAGE_PRICING_JSON_PATH = litellm-pricing;
+
+  # build.rs falls back to the tagged tree's own version, but the tag is
+  # authoritative for what we claim to ship.
+  env.CCUSAGE_VERSION = version;
 
   # The pricing snapshot above is pinned by hand while build.rs resolves it from
   # upstream's flake.lock, so the two drift apart on every version bump unless
@@ -80,8 +86,8 @@ rustPlatform.buildRustPackage rec {
 
   meta = with lib; {
     description = "Analyze coding agent CLI token usage and costs from local data";
-    homepage = "https://github.com/ryoppippi/ccusage";
-    changelog = "https://github.com/ryoppippi/ccusage/releases/tag/v${version}";
+    homepage = "https://ccusage.com/";
+    changelog = "https://github.com/ccusage/ccusage/releases/tag/v${version}";
     license = licenses.mit;
     sourceProvenance = with lib.sourceTypes; [ fromSource ];
     maintainers = with maintainers; [ ryoppippi ];
