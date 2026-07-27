@@ -6,7 +6,6 @@
   jq,
   pkg-config,
   stdenv,
-  libiconv,
   versionCheckHook,
   versionCheckHomeHook,
 }:
@@ -51,7 +50,10 @@ rustPlatform.buildRustPackage rec {
     pkg-config
   ];
 
-  buildInputs = lib.optionals stdenv.hostPlatform.isDarwin [ libiconv ];
+  # nixpkgs' Darwin cc-wrapper injects -liconv even though ccusage references no
+  # iconv symbols, leaving an unused store dependency (upstream ccusage#1251).
+  # dead_strip_dylibs drops load commands whose symbols are never referenced.
+  env.RUSTFLAGS = lib.optionalString stdenv.hostPlatform.isDarwin "-C link-arg=-Wl,-dead_strip_dylibs";
 
   env.CCUSAGE_PRICING_JSON_PATH = litellm-pricing;
 
