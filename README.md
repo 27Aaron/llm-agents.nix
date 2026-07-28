@@ -587,7 +587,7 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 - **Source**: source
 - **License**: MIT
-- **Homepage**: https://github.com/ryoppippi/ccusage
+- **Homepage**: https://ccusage.com/
 - **Usage**: `nix run github:numtide/llm-agents.nix#ccusage -- --help`
 - **Nix**: [packages/ccusage/package.nix](packages/ccusage/package.nix)
 
