@@ -1,13 +1,19 @@
 {
   lib,
+  flake,
   stdenv,
+  fetchurl,
   platformSource,
+  cacert,
+  makeWrapper,
+  nodejs,
   wrapBuddy,
   versionCheckHook,
   versionCheckHomeHook,
 }:
 
 let
+  versionData = builtins.fromJSON (builtins.readFile ./hashes.json);
   source = platformSource {
     hashesFile = ./hashes.json;
     platforms = {
@@ -19,6 +25,10 @@ let
       { version, platform }:
       "https://registry.npmjs.org/@cline/cli-${platform}/-/cli-${platform}-${version}.tgz";
   };
+  launcher = fetchurl {
+    url = "https://registry.npmjs.org/cline/-/cline-${source.version}.tgz";
+    hash = versionData.launcherHash;
+  };
 in
 stdenv.mkDerivation {
   pname = "cline";
@@ -26,7 +36,11 @@ stdenv.mkDerivation {
 
   sourceRoot = "package";
 
-  nativeBuildInputs = lib.optionals stdenv.hostPlatform.isLinux [ wrapBuddy ];
+  nativeBuildInputs = [
+    makeWrapper
+    nodejs
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [ wrapBuddy ];
 
   dontBuild = true;
   dontStrip = true;
@@ -34,10 +48,19 @@ stdenv.mkDerivation {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/lib
-    cp -r . $out/lib/cline
-    mkdir -p $out/bin
-    ln -s $out/lib/cline/bin/cline $out/bin/cline
+    mkdir -p $out/lib/cline-platform $out/lib/cline-launcher
+    cp -r . $out/lib/cline-platform
+    tar -xzf ${launcher} --strip-components=1 -C $out/lib/cline-launcher package/bin
+
+    # Use the official npm launcher so Cline retains its OS trust-store
+    # handling. The npm postinstall normally caches this platform binary as
+    # bin/.cline; a symlink provides the same immutable Nix-store layout.
+    ln -s $out/lib/cline-platform/bin/cline $out/lib/cline-launcher/bin/.cline
+    patchShebangs $out/lib/cline-launcher/bin/cline
+
+    makeWrapper $out/lib/cline-launcher/bin/cline $out/bin/cline \
+      --set-default SSL_CERT_FILE ${cacert}/etc/ssl/certs/ca-bundle.crt \
+      --set-default SSL_CERT_DIR ${cacert}/etc/ssl/certs
 
     runHook postInstall
   '';
@@ -57,7 +80,7 @@ stdenv.mkDerivation {
     downloadPage = "https://www.npmjs.com/package/cline";
     license = lib.licenses.asl20;
     sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
-    maintainers = [ ];
+    maintainers = with flake.lib.maintainers; [ poelzi ];
     mainProgram = "cline";
     platforms = source.platforms;
   };

@@ -60,6 +60,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>cline</strong> - Autonomous coding agent CLI</summary>
+
+- **Source**: binary
+- **License**: Apache-2.0
+- **Homepage**: https://cline.bot
+- **Usage**: `nix run github:numtide/llm-agents.nix#cline -- --help`
+- **Nix**: [packages/cline/package.nix](packages/cline/package.nix)
+
+</details>
+<details>
 <summary><strong>code</strong> - Fork of codex. Orchestrate agents from OpenAI, Claude, Gemini or any provider.</summary>
 
 - **Source**: source
