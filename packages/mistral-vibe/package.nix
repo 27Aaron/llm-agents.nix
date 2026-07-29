@@ -235,7 +235,7 @@ python.pkgs.buildPythonApplication rec {
     "vibe"
     "vibe.cli.cli"
     "vibe.core.llm.backend.mistral"
-    "vibe.core.transcribe.mistral_transcribe_client"
+    "vibe.cli.transcribe.mistral_transcribe_client"
   ];
 
   doInstallCheck = true;
