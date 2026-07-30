@@ -21,10 +21,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   cargoHash = "sha256-fDM1ymMOmCUc7q7onb5Fn49frzXtmZO4hk9ESgbCBww=";
 
-  # A handful of store tests assert display refs whose project key is inferred
-  # from the checkout directory's name (e.g. "aven" -> "AVN"). Nix unpacks the
-  # source into a directory called "source" (-> "SRC"), so rename it to "aven"
-  # to match upstream's expectations. Paired with the git init in preCheck.
+  # Some tests infer the project key from the checkout directory name
+  # ("aven" -> "AVN"), but Nix unpacks into "source".
   postUnpack = ''
     mv source aven
     export sourceRoot=aven
@@ -41,12 +39,9 @@ rustPlatform.buildRustPackage (finalAttrs: {
     cp -r skills $out/share/aven/skills
   '';
 
-  # git: TUI tests infer the project from the checkout's git repo (see preCheck).
-  # sqlite: cli_attachment_lifecycle integration tests shell out to `sqlite3`.
-  # cacert: the sync client (reqwest + rustls-native-certs) loads system CA
-  # certs when it is built, even for plain http://127.0.0.1 test servers, and
-  # errors with "No CA certificates were loaded from the system" in the Linux
-  # sandbox, which has none. Paired with SSL_CERT_FILE in preCheck.
+  # git: tests infer the project from the checkout's git repo (see preCheck).
+  # sqlite: attachment tests shell out to `sqlite3`.
+  # cacert: rustls-native-certs fails without system CA certs in the sandbox.
   nativeCheckInputs = [
     cacert
     git
@@ -54,26 +49,16 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ];
 
   checkFlags = [
-    # chrono resolves a named TZ (e.g. TZ=America/New_York) only from a hardcoded
-    # set of system paths (/usr/share/zoneinfo, ...) and ignores $TZDIR
-    # (https://github.com/chronotope/chrono/issues/1265), so the DST offset test
-    # cannot see a zoneinfo database in the hermetic sandbox and falls back to
-    # UTC. Skip just that test; the rest of cli_local runs.
+    # Needs a system zoneinfo database, which the sandbox lacks
+    # (chrono ignores $TZDIR: https://github.com/chronotope/chrono/issues/1265).
     "--skip=local_calendar_dates_use_offsets_across_daylight_saving_boundaries"
-    # `aven backup` shells out to a `sqlite3 .backup` subprocess (busy_timeout=0)
-    # while its own WAL connection to the same file is still open, so a WAL
-    # checkpoint racing that lock surfaces as "database is locked". The window is
-    # load-sensitive: it passes under light load but flakes on heavily parallel,
-    # slower runners (seen on aarch64). Run the suite single-threaded to remove
-    # the cross-test CPU contention that widens the race.
+    # `aven backup` races its own WAL connection against a `sqlite3 .backup`
+    # subprocess and flakes as "database is locked" on loaded runners.
     "--test-threads=1"
   ];
 
-  # A large share of the TUI tests create tasks without an explicit project and
-  # rely on aven inferring one from the current directory's git repository
-  # (src/projects.rs: git_root walks up for a `.git`). The Nix sandbox is not a
-  # git repo, so inference yields nothing and the tasks fail with
-  # "project-required". Initialise a repo at the check cwd so inference resolves.
+  # Many tests rely on inferring the project from the surrounding git repo;
+  # the sandbox is not a git repo, so create one.
   preCheck = ''
     export HOME=$(mktemp -d)
     export SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt
@@ -87,12 +72,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   meta = {
     description = "Local-first task manager for power users and agents";
-    longDescription = ''
-      Aven is a local-first task manager built for both humans and AI agents.
-      It stores tasks offline in SQLite with optional self-hosted sync, exposes
-      an agent-first CLI, ships a polished terminal UI, and keeps tasks
-      markdown-native with unique IDs and workspace isolation.
-    '';
     homepage = "https://github.com/raine/aven";
     changelog = "https://github.com/raine/aven/blob/v${finalAttrs.version}/CHANGELOG.md";
     license = lib.licenses.mit;
