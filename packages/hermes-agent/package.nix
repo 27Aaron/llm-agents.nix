@@ -344,6 +344,12 @@ python3.pkgs.buildPythonApplication {
   # into the read-only store on any drift, silently disabling the feature
   # (e.g. nixpkgs aiosqlite 0.21.0 vs hermes pin 0.22.1 disabled matrix).
   # The closure already provides every dep, so presence is sufficient.
+  # Dashboard slash workers re-exec the bare sys.executable, which cannot
+  # import Hermes modules or its dependencies under Nix; run them with the
+  # wrapper-provided interpreter and source root instead of leaking a global
+  # PYTHONPATH into every subprocess Hermes spawns.
+  patches = [ ./slash-worker-hermes-python.patch ];
+
   postPatch = ''
     substituteInPlace tools/lazy_deps.py \
       --replace-fail 'Version(installed) in SpecifierSet(spec_tail)' 'True'
@@ -373,12 +379,6 @@ python3.pkgs.buildPythonApplication {
     "--set"
     "HERMES_PYTHON_SRC_ROOT"
     "${placeholder "out"}/${python3.sitePackages}"
-    # Dashboard slash workers re-exec the bare sys.executable, bypassing both
-    # the application wrapper and the dependency environment.
-    "--prefix"
-    "PYTHONPATH"
-    ":"
-    "${placeholder "out"}/${python3.sitePackages}:${pythonEnv}/${python3.sitePackages}"
     "--set"
     "HERMES_NODE"
     "${nodejs}/bin/node"
@@ -458,14 +458,14 @@ python3.pkgs.buildPythonApplication {
     grep -q HERMES_PYTHON_SRC_ROOT $out/bin/hermes
     grep -q HERMES_BUNDLED_SKILLS $out/bin/hermes
     grep -q HERMES_OPTIONAL_SKILLS $out/bin/hermes
-    grep -q PYTHONPATH $out/bin/hermes
     test -f ${hermes-frontend}/lib/hermes-tui/dist/entry.js
     test -f ${hermes-frontend}/share/hermes-web/index.html
     test -d $out/share/hermes/skills
     test -d $out/share/hermes/optional-skills
     ${pythonEnv}/bin/python3 -c 'import dotenv, tenacity, openai'
-    PYTHONPATH="$out/${python3.sitePackages}:${pythonEnv}/${python3.sitePackages}" \
-      ${python3}/bin/python3 -c 'import tui_gateway.slash_worker, yaml'
+    # Slash workers run HERMES_PYTHON with PYTHONPATH=HERMES_PYTHON_SRC_ROOT.
+    PYTHONPATH="$out/${python3.sitePackages}" \
+      ${pythonEnv}/bin/python3 -c 'import tui_gateway.slash_worker, yaml'
   ''
   + lib.optionalString stdenv.hostPlatform.isLinux ''
     # Matrix E2EE: mautrix.crypto must import and the disable switch wired in.
