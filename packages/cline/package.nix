@@ -13,7 +13,7 @@
 }:
 
 let
-  versionData = builtins.fromJSON (builtins.readFile ./hashes.json);
+  versionData = lib.importJSON ./hashes.json;
   source = platformSource {
     hashesFile = ./hashes.json;
     platforms = {

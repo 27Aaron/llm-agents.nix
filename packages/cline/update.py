@@ -25,7 +25,7 @@ latest = fetch_npm_version("cline")
 
 print(f"Current: {current}, Latest: {latest}")
 
-if not should_update(current, latest) and "launcherHash" in data:
+if not should_update(current, latest):
     print("Already up to date")
     raise SystemExit
 
