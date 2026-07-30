@@ -616,6 +616,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>aven</strong> - Local-first task manager for power users and agents</summary>
+
+- **Source**: source
+- **License**: MIT
+- **Homepage**: https://github.com/raine/aven
+- **Usage**: `nix run github:numtide/llm-agents.nix#aven -- --help`
+- **Nix**: [packages/aven/package.nix](packages/aven/package.nix)
+
+</details>
+<details>
 <summary><strong>backlog-md</strong> - Backlog.md - A tool for managing project collaboration between humans and AI Agents in a git ecosystem</summary>
 
 - **Source**: source
