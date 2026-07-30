@@ -1,0 +1,9 @@
+{
+  "version": "3.0.47",
+  "launcherHash": "sha256-B4CC/64pooZ6/9DqxVYmRUhDGL8P8vhh1ImhDj8fO3E=",
+  "hashes": {
+    "aarch64-darwin": "sha256-xKhTFXR/h7dYjEJfn/VYL6om748q3cJ6MnwJ9xS5+3w=",
+    "aarch64-linux": "sha256-CWKnLJQ2Fh5l19U+Yj4egoJXmU7bgceyhLlFOHusHiw=",
+    "x86_64-linux": "sha256-qxsW35L+U5VeE5LLwcDgcno638Wxer/Utz/gAN+LUm4="
+  }
+}
