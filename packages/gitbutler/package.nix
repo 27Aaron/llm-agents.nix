@@ -12,7 +12,6 @@
   fetchPnpmDeps,
   glib-networking,
   jq,
-  libgit2,
   makeBinaryWrapper,
   moreutils,
   nodejs,
@@ -87,7 +86,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ++ lib.optional stdenv.hostPlatform.isDarwin makeBinaryWrapper;
 
   buildInputs = [
-    libgit2
     openssl
   ]
   ++ lib.optional stdenv.hostPlatform.isDarwin curl
@@ -120,7 +118,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
     TURBO_TELEMETRY_DISABLED = 1;
 
     OPENSSL_NO_VENDOR = true;
-    LIBGIT2_NO_VENDOR = 1;
+    # 0.22.0 uses a libgit2-sys fork that requires "libgit2-experimental",
+    # which nixpkgs does not provide; build the vendored copy instead.
   };
 
   preBuild = ''
