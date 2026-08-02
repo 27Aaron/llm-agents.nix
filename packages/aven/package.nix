@@ -1,10 +1,12 @@
 {
   lib,
+  stdenv,
   fetchFromGitHub,
   rustPlatform,
   cacert,
   git,
   sqlite,
+  libredirect,
   versionCheckHook,
 }:
 
@@ -63,6 +65,14 @@ rustPlatform.buildRustPackage (finalAttrs: {
     export HOME=$(mktemp -d)
     export SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt
     git init -q .
+  ''
+  # iana-time-zone resolves the local zone from /etc/localtime or
+  # /etc/timezone (never $TZ); the Linux sandbox has neither, so redirect
+  # /etc/timezone to a file naming UTC.
+  + lib.optionalString stdenv.hostPlatform.isLinux ''
+    echo UTC > "$TMPDIR/timezone"
+    export NIX_REDIRECTS=/etc/timezone=$TMPDIR/timezone
+    export LD_PRELOAD=${libredirect}/lib/libredirect.so
   '';
 
   doInstallCheck = true;
