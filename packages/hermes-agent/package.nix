@@ -3,6 +3,7 @@
   stdenv,
   flake,
   python3,
+  rustPlatform,
   fetchFromGitHub,
   fetchPypi,
   buildNpmPackage,
@@ -13,6 +14,45 @@
 }:
 
 let
+  # Native (PyO3) runtime for hermes' Relay lifecycle and shared metrics;
+  # PyPI ships wheels only, so build from source with maturin.
+  nemo-relay = python3.pkgs.buildPythonPackage rec {
+    pname = "nemo-relay";
+    version = "0.6.0";
+    pyproject = true;
+
+    src = fetchFromGitHub {
+      owner = "NVIDIA";
+      repo = "NeMo-Relay";
+      tag = version;
+      hash = "sha256-mqI1tDl01a+FCv1FSMqvzYGuS/7hNlc99jcFiN6dRIM=";
+    };
+
+    cargoDeps = rustPlatform.fetchCargoVendor {
+      inherit src;
+      name = "nemo-relay-${version}";
+      hash = "sha256-KxPNGhYHmMFCSiEJomZztrc2P/knYA0It+vuurIccCQ=";
+    };
+
+    nativeBuildInputs = with rustPlatform; [
+      cargoSetupHook
+      maturinBuildHook
+    ];
+
+    pythonImportsCheck = [
+      "nemo_relay"
+      "nemo_relay._native"
+    ];
+
+    meta = with lib; {
+      description = "Python bindings for the NeMo Relay agent runtime";
+      homepage = "https://github.com/NVIDIA/NeMo-Relay";
+      license = licenses.asl20;
+      sourceProvenance = with sourceTypes; [ fromSource ];
+      platforms = platforms.unix;
+    };
+  };
+
   exa-py = python3.pkgs.buildPythonPackage rec {
     pname = "exa-py";
     version = "2.10.2";
@@ -201,6 +241,8 @@ let
       # Skills Hub
       pyjwt
       cryptography
+      # Relay lifecycle + shared metrics
+      nemo-relay
     ]
     # faster-whisper -> av SIGKILLs during import on darwin; voice is optional.
     ++ lib.optionals stdenv.hostPlatform.isLinux [ faster-whisper ]
@@ -307,6 +349,10 @@ python3.pkgs.buildPythonApplication {
       --replace-fail 'Version(installed) in SpecifierSet(spec_tail)' 'True'
   '';
 
+  # setup.py refuses to build wheels/sdists unless it knows this is a Nix
+  # (uv2nix-style) build; upstream gates it behind this env var.
+  env.HERMES_NIX_BUILD = "1";
+
   # Upstream pins setuptools<83 in build-system.requires, which nixpkgs'
   # setuptools 83 no longer satisfies; the pin is only about metadata quirks.
   pypaBuildFlags = [ "--skip-dependency-check" ];
@@ -386,6 +432,9 @@ python3.pkgs.buildPythonApplication {
     "discord"
     "telegram.ext"
     "croniter"
+    # relay_runtime imports this lazily and silently degrades to a noop
+    # runtime when missing, so assert it imports.
+    "nemo_relay"
   ];
 
   doInstallCheck = true;
