@@ -12,16 +12,16 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "aven";
-  version = "0.1.21";
+  version = "0.1.22";
 
   src = fetchFromGitHub {
     owner = "raine";
     repo = "aven";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-R2W/Iv0nlh8LVQWsgEcFF/Onnszdy0OmyYW5qTJF3MA=";
+    hash = "sha256-LMaYbpyYd/HQ4b0eMAFyCnFaDuEYR2ZDv+I6+lm6hyg=";
   };
 
-  cargoHash = "sha256-oi59kBTWzt+aiNq0e+UB3ClWdzZAfbglFRQmh/Cez/s=";
+  cargoHash = "sha256-3yhAVmIcCVtoRYlrLh26O17M+pOAGZ3tfmW1oucow6o=";
 
   # Some tests infer the project key from the checkout directory name
   # ("aven" -> "AVN"), but Nix unpacks into "source".
