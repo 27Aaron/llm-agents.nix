@@ -15,7 +15,10 @@
 }:
 
 let
+  # frontend/package.json pins node 22 and pnpm 11 via `engines`.
   pnpm = pnpm_11.override { nodejs-slim = nodejs_22; };
+  # The webui build.rs runs `corepack pnpm ...`.
+  # Forward that to our pnpm instead of letting corepack download its own.
   corepack = writeShellScriptBin "corepack" ''
     shift
     exec ${pnpm}/bin/pnpm "$@"
@@ -61,7 +64,6 @@ rustPlatform.buildRustPackage rec {
     "--package"
     "ironclaw"
   ];
-  cargoTestFlags = cargoBuildFlags;
 
   # Upstream's smoke tests require host CA certificates and GNU awk, but do
   # not arrange either in Cargo's test environment.
@@ -72,7 +74,6 @@ rustPlatform.buildRustPackage rec {
     versionCheckHook
     versionCheckHomeHook
   ];
-  versionCheckProgramArg = "--version";
 
   passthru.category = "AI Assistants";
 
