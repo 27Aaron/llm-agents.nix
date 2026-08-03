@@ -16,17 +16,14 @@ let
     x86_64-linux = {
       os = "linux";
       cpu = "x86_64";
-      artifact = "linux-x86_64";
     };
     aarch64-linux = {
       os = "linux";
       cpu = "aarch64";
-      artifact = "linux-aarch64";
     };
     aarch64-darwin = {
       os = "darwin";
       cpu = "aarch64";
-      artifact = "darwin-aarch64";
     };
   };
 
@@ -38,7 +35,7 @@ stdenv.mkDerivation {
   inherit version;
 
   src = fetchurl {
-    url = "https://artifacts.swamp-club.com/swamp/${version}/binary/${platform.os}/${platform.cpu}/swamp-${version}-binary-${platform.artifact}.tar.gz";
+    url = "https://artifacts.swamp-club.com/swamp/${version}/binary/${platform.os}/${platform.cpu}/swamp-${version}-binary-${platform.os}-${platform.cpu}.tar.gz";
     hash = hashes.${system};
   };
 
