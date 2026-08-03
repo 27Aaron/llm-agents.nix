@@ -184,6 +184,11 @@ inputs.nixpkgs.lib.extend (
         githubId = 66107;
         name = "Daniel Poelzleithner";
       };
+      selmison = {
+        github = "selmison";
+        githubId = 24687232;
+        name = "Selmison Miranda";
+      };
     };
   }
 )

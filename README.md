@@ -826,6 +826,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>swamp</strong> - Deterministic automation for AI agents</summary>
+
+- **Source**: binary
+- **License**: AGPL-3.0-only
+- **Homepage**: https://swamp-club.com/
+- **Usage**: `nix run github:numtide/llm-agents.nix#swamp -- --help`
+- **Nix**: [packages/swamp/package.nix](packages/swamp/package.nix)
+
+</details>
+<details>
 <summary><strong>td</strong> - A minimalist CLI for tracking tasks across AI coding sessions.</summary>
 
 - **Source**: source
