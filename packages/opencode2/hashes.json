@@ -1,8 +1,8 @@
 {
-  "version": "0.0.0-next-16839",
+  "version": "0.0.0-next-16860",
   "hashes": {
-    "aarch64-darwin": "sha256-oqWgdUq6etht+iIpob0ImcKBiBFueYGOUHg1xfUjoWk=",
-    "x86_64-linux": "sha256-GRc6tzSdF8LIsqOaqr0Cj4sK/7O/XDdVLZThqHP+PXI=",
-    "aarch64-linux": "sha256-3EYs4iupCzWDSfpHltoUVdt1lQQG0FyOjIB4VXegu/A="
+    "aarch64-darwin": "sha256-MhMIIRTIOPG5YLnEFV1pI4vJjYYNNoADrVKlD04onaM=",
+    "x86_64-linux": "sha256-fG6OdLdRIC1pQ+v5R1fKKRxGlFvuSVVo8vwZlkrT+d0=",
+    "aarch64-linux": "sha256-QP7ndnsFVf3uTWrJQnBD7Y+cjI9p2/Ix2oOfQCzf2G8="
   }
 }
