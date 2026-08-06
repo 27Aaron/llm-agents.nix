@@ -184,7 +184,13 @@ let
 
     # The apps/desktop workspace pulls in electron; skip its binary download
     # and all install scripts — the esbuild/vite builds below don't need them.
-    npmFlags = [ "--ignore-scripts" ];
+    # Upstream's .npmrc sets engine-strict=true and package.json rejects the
+    # npm range shipped with nixpkgs' nodejs to work around a min-release-age
+    # bug, which is irrelevant for the offline install here.
+    npmFlags = [
+      "--ignore-scripts"
+      "--engine-strict=false"
+    ];
     env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
 
     buildPhase = ''
