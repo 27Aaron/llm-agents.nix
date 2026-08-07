@@ -351,6 +351,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>prime-agent</strong> - A self-improving RLM agent for coding workflows and long-running autonomous tasks.</summary>
+
+- **Source**: source
+- **License**: MIT
+- **Homepage**: https://github.com/PrimeIntellect-ai/prime-agent
+- **Usage**: `nix run github:numtide/llm-agents.nix#prime-agent -- --help`
+- **Nix**: [packages/prime-agent/package.nix](packages/prime-agent/package.nix)
+
+</details>
+<details>
 <summary><strong>qoder-cli</strong> - Qoder AI CLI tool - Terminal-based AI assistant for code development</summary>
 
 - **Source**: binary
