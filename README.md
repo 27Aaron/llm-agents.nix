@@ -391,6 +391,26 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>t3code</strong> - Control surface for coding agents</summary>
+
+- **Source**: source
+- **License**: MIT
+- **Homepage**: https://t3.codes
+- **Usage**: `nix run github:numtide/llm-agents.nix#t3code -- --help`
+- **Nix**: [packages/t3code/package.nix](packages/t3code/package.nix)
+
+</details>
+<details>
+<summary><strong>t3code-desktop</strong> - Desktop control surface for coding agents</summary>
+
+- **Source**: source
+- **License**: MIT
+- **Homepage**: https://t3.codes
+- **Usage**: `nix run github:numtide/llm-agents.nix#t3code-desktop -- --help`
+- **Nix**: [packages/t3code-desktop/package.nix](packages/t3code-desktop/package.nix)
+
+</details>
+<details>
 <summary><strong>vix</strong> - Sleek, Fast and Token Efficient AI Coding Agent</summary>
 
 - **Source**: source
