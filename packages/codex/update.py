@@ -63,13 +63,30 @@ def librusty_v8_pins(
         print("V8 unchanged, reusing hashes")
         return previous
 
-    hashes = calculate_platform_hashes(
-        "https://github.com/denoland/rusty_v8/releases/download/"
-        "v{version}/librusty_v8_release_{platform}.a.gz",
-        RUSTY_V8_PLATFORMS,
-        version=v8_version,
+    # codex enables v8_enable_sandbox (code-mode-runtime), a feature combo
+    # denoland publishes no prebuilts for.  openai builds and releases the
+    # matching artifacts themselves under the rusty-v8-v<version> tag, plus
+    # the pre-generated src_binding_*.rs that rusty_v8 >= 150 include!s.
+    # Mirrors .github/actions/setup-rusty-v8 in the codex repo.
+    profile = "ptrcomp_sandbox_release"
+    base_url = (
+        f"https://github.com/openai/codex/releases/download/rusty-v8-v{v8_version}"
     )
-    return {"version": v8_version, "hashes": {k: hashes[k] for k in RUSTY_V8_PLATFORMS}}
+    hashes = calculate_platform_hashes(
+        base_url + "/librusty_v8_" + profile + "_{platform}.a.gz",
+        RUSTY_V8_PLATFORMS,
+    )
+    binding_hashes = calculate_platform_hashes(
+        base_url + "/src_binding_" + profile + "_{platform}.rs",
+        RUSTY_V8_PLATFORMS,
+    )
+    return {
+        "version": v8_version,
+        "profile": profile,
+        "baseUrl": base_url,
+        "hashes": {k: hashes[k] for k in RUSTY_V8_PLATFORMS},
+        "srcBindingHashes": {k: binding_hashes[k] for k in RUSTY_V8_PLATFORMS},
+    }
 
 
 def main() -> None:
