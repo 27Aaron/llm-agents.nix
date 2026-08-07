@@ -63,10 +63,8 @@ def librusty_v8_pins(
         print("V8 unchanged, reusing hashes")
         return previous
 
-    # codex enables v8_enable_sandbox (code-mode-runtime), a feature combo
-    # denoland publishes no prebuilts for.  openai builds and releases the
-    # matching artifacts themselves under the rusty-v8-v<version> tag, plus
-    # the pre-generated src_binding_*.rs that rusty_v8 >= 150 include!s.
+    # denoland publishes no prebuilts for the v8_enable_sandbox combo codex
+    # uses; openai releases their own under the rusty-v8-v<version> tag.
     # Mirrors .github/actions/setup-rusty-v8 in the codex repo.
     profile = "ptrcomp_sandbox_release"
     base_url = (

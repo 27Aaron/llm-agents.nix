@@ -8,12 +8,11 @@ lib.makeOverridable (
   {
     version,
     hashes,
-    # Prebuilt flavor: "release" (denoland's default) or a feature-suffixed
-    # profile like "ptrcomp_sandbox_release" (openai's codex builds).
+    # "release", or a feature-suffixed flavor like "ptrcomp_sandbox_release".
     profile ? "release",
     baseUrl ? "https://github.com/denoland/rusty_v8/releases/download/v${version}",
-    # rusty_v8 >= 150 also needs the pre-generated src_binding_*.rs
-    # (RUSTY_V8_SRC_BINDING_PATH).  Exposed as passthru.srcBinding.
+    # rusty_v8 >= 150 needs the matching src_binding_*.rs too; when set,
+    # it's exposed as passthru.srcBinding.
     srcBindingHashes ? null,
   }:
 

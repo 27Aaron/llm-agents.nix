@@ -77,8 +77,7 @@ rustPlatform.buildRustPackage (
       RUSTY_V8_ARCHIVE = librusty_v8;
     }
     // lib.optionalAttrs (librusty_v8 ? srcBinding) {
-      # rusty_v8 >= 150 include!s a pre-generated bindings file instead of
-      # running bindgen at build time.
+      # rusty_v8 >= 150 include!s this instead of running bindgen.
       RUSTY_V8_SRC_BINDING_PATH = librusty_v8.srcBinding;
     }
     // {
