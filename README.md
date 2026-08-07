@@ -726,6 +726,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>collie</strong> - Mobile web UI to monitor and reply to your Herdr agent herd over Tailscale</summary>
+
+- **Source**: source
+- **License**: MIT
+- **Homepage**: https://github.com/AltanS/collie
+- **Usage**: `nix run github:numtide/llm-agents.nix#collie -- --help`
+- **Nix**: [packages/collie/package.nix](packages/collie/package.nix)
+
+</details>
+<details>
 <summary><strong>gascity</strong> - Orchestration-builder SDK for multi-agent coding workflows</summary>
 
 - **Source**: source
