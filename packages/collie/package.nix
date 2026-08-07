@@ -56,8 +56,14 @@ stdenv.mkDerivation {
   buildPhase = ''
     runHook preBuild
 
+    # Hoisted linker (not the hook's isolated one): vite-plugin-pwa's virtual
+    # module resolves its transitive workbox-window from the project root,
+    # which the isolated layout doesn't expose.  Hardlink backend: Darwin's
+    # default clonefile clones the store cache's read-only dir perms and the
+    # install falls over; hardlink creates fresh dirs and links only files.
     pushd web
-    bun install --frozen-lockfile --no-progress --ignore-scripts
+    bun install --frozen-lockfile --no-progress --ignore-scripts \
+      --backend=hardlink
     bun run build
     popd
 
