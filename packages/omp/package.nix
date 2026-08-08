@@ -20,6 +20,7 @@
   cmake,
   libpulseaudio,
   unzip,
+  pipewire,
 }:
 
 let
@@ -125,6 +126,8 @@ stdenv.mkDerivation {
     zlib
     # audiopus_sys links against opus (found via pkg-config)
     libopus
+    # pi-natives' wayland-pipewire feature links system libpipewire (pkg-config)
+    pipewire
   ];
 
   # cmake is only needed by the audiopus_sys build script, not for configuring
@@ -212,7 +215,9 @@ stdenv.mkDerivation {
 
     # Build the Rust native addon
     echo "Building Rust native addon..."
-    cargo build --release -p pi-natives --target ${rustTarget} --target-dir target
+    cargo build --release -p pi-natives \
+      ${lib.optionalString stdenv.hostPlatform.isLinux "--features wayland-pipewire"} \
+      --target ${rustTarget} --target-dir target
 
     # Install the native addon where the JS code expects it
     mkdir -p packages/natives/native
@@ -289,6 +294,7 @@ stdenv.mkDerivation {
         zlib
         stdenv.cc.cc.lib
         libpulseaudio
+        pipewire
       ]
     }"}
 
