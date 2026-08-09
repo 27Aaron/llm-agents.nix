@@ -371,6 +371,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>qoder-cli-cn</strong> - 终端原生的 AI 编程搭档，也是可被集成的智能体引擎。</summary>
+
+- **Source**: binary
+- **License**: unfree
+- **Homepage**: https://qoder.cn
+- **Usage**: `nix run github:numtide/llm-agents.nix#qoder-cli-cn -- --help`
+- **Nix**: [packages/qoder-cli-cn/package.nix](packages/qoder-cli-cn/package.nix)
+
+</details>
+<details>
 <summary><strong>qwen-code</strong> - Command-line AI workflow tool for Qwen3-Coder models</summary>
 
 - **Source**: source
