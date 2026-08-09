@@ -1,6 +1,8 @@
 {
   lib,
   stdenv,
+  stdenvNoCC,
+  fetchurl,
   fetchFromGitHub,
   bun2nixLib,
   bun,
@@ -17,6 +19,7 @@
   zig,
   cmake,
   libpulseaudio,
+  unzip,
 }:
 
 let
@@ -24,17 +27,26 @@ let
   inherit (versionData) version hash cargoHash;
   platformsBySystem = {
     aarch64-darwin = {
-      bunTarget = "bun-darwin-arm64";
+      bunTemplate = {
+        name = "bun-darwin-aarch64";
+        hash = "sha256-2LliIYKK1vl6x6wKt+lYcjQa92MAHogD6CZ2UsJlJiA=";
+      };
       nativeLib = "libpi_natives.dylib";
       nodeTag = "darwin-arm64";
     };
     aarch64-linux = {
-      bunTarget = "bun-linux-arm64";
+      bunTemplate = {
+        name = "bun-linux-aarch64";
+        hash = "sha256-on/7Y6gxA3WDbg1vZorhf6jY0YuIw3yCHGUzGXOhmjs=";
+      };
       nativeLib = "libpi_natives.so";
       nodeTag = "linux-arm64";
     };
     x86_64-linux = {
-      bunTarget = "bun-linux-x64-modern";
+      bunTemplate = {
+        name = "bun-linux-x64";
+        hash = "sha256-lR7iruhV8IWVruxiJSJqKY0/6oOj3NZGXAnLzN9+hI8=";
+      };
       nativeLib = "libpi_natives.so";
       nodeTag = "linux-x64";
     };
@@ -42,6 +54,34 @@ let
   platform =
     platformsBySystem.${stdenv.hostPlatform.system}
       or (throw "Unsupported platform for omp: ${stdenv.hostPlatform.system}");
+  # Bun 1.3.14 adds Bun.Image, but its compiler corrupts Nix-patched
+  # executable templates: https://github.com/oven-sh/bun/issues/31023
+  # Bun 1.3.13 writes OMP into the unmodified 1.3.14 template instead.
+  # Remove this split after a stable Bun release contains oven-sh/bun#31024.
+  bunRuntimeVersion = "1.3.14";
+  bunRuntimeTemplate = stdenvNoCC.mkDerivation {
+    pname = "omp-bun-runtime-template";
+    version = bunRuntimeVersion;
+
+    src = fetchurl {
+      url = "https://github.com/oven-sh/bun/releases/download/bun-v${bunRuntimeVersion}/${platform.bunTemplate.name}.zip";
+      inherit (platform.bunTemplate) hash;
+    };
+
+    sourceRoot = platform.bunTemplate.name;
+    nativeBuildInputs = [ unzip ];
+    dontConfigure = true;
+    dontBuild = true;
+    # The ELF must keep its original three PT_LOAD segments. It is build data,
+    # not an executable that runs in this derivation.
+    dontFixup = true;
+
+    installPhase = ''
+      runHook preInstall
+      install -Dm755 ./bun $out/libexec/bun
+      runHook postInstall
+    '';
+  };
   rustTarget = stdenv.hostPlatform.rust.rustcTarget;
 
   src = fetchFromGitHub {
@@ -54,6 +94,7 @@ in
 stdenv.mkDerivation {
   pname = "omp";
   inherit version src;
+  patches = [ ./use-bun-executable-template.patch ];
 
   cargoDeps = rustPlatform.fetchCargoVendor {
     name = "omp-${version}-cargo-vendor";
@@ -154,11 +195,6 @@ stdenv.mkDerivation {
     done
     sed -i 's/: "\^/: "/g; s/: "~/: "/g' bun.lock
 
-    # Relax engines.bun to the bun doing the compile, otherwise omp refuses
-    # to start when the embedded runtime is older than upstream's minimum
-    # (issue #4996).
-    sed -i 's/"bun": ">=[0-9.]*"/"bun": ">='"$(bun --version)"'"/' \
-      packages/utils/package.json
 
     # Placeholder client bundle avoids building the full React dashboard.
     cat > packages/stats/src/embedded-client.generated.txt <<'PLACEHOLDER'
@@ -233,7 +269,7 @@ stdenv.mkDerivation {
     # Bun.build() plugin from upstream's compile-binary.ts can provide, so
     # drive that helper instead of `bun build --compile`.
     echo "Compiling standalone binary..."
-    (cd packages/coding-agent && bun ${./compile-standalone.ts} "${platform.bunTarget}")
+    (cd packages/coding-agent && bun ${./compile-standalone.ts} "${bunRuntimeTemplate}/libexec/bun")
 
     runHook postBuild
   '';
@@ -271,6 +307,8 @@ stdenv.mkDerivation {
   installCheckPhase = ''
     runHook preInstallCheck
     HOME=$TMPDIR $out/bin/omp --smoke-test | grep -q "smoke-test: ok"
+    BUN_BE_BUN=1 $out/lib/omp/omp -e \
+      'if (Bun.version !== "${bunRuntimeVersion}" || typeof Bun.Image !== "function") process.exit(1)'
     runHook postInstallCheck
   '';
 
