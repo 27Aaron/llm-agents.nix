@@ -354,7 +354,13 @@ python3.pkgs.buildPythonApplication {
   # import Hermes modules or its dependencies under Nix; run them with the
   # wrapper-provided interpreter and source root instead of leaking a global
   # PYTHONPATH into every subprocess Hermes spawns.
-  patches = [ ./slash-worker-hermes-python.patch ];
+  # DaemonThreadPoolExecutor mirrors CPython <=3.13 ThreadPoolExecutor
+  # internals; Python 3.14 refactored _worker around WorkerContext, so every
+  # tool call fails with AttributeError: no attribute '_initializer' (#7725).
+  patches = [
+    ./slash-worker-hermes-python.patch
+    ./daemon-pool-python314.patch
+  ];
 
   postPatch = ''
     substituteInPlace tools/lazy_deps.py \
@@ -479,6 +485,10 @@ python3.pkgs.buildPythonApplication {
     # Slash workers run HERMES_PYTHON with PYTHONPATH=HERMES_PYTHON_SRC_ROOT.
     PYTHONPATH="$out/${python3.sitePackages}" \
       ${pythonEnv}/bin/python3 -c 'import tui_gateway.slash_worker, yaml'
+    # #7725: DaemonThreadPoolExecutor mirrors CPython ThreadPoolExecutor
+    # internals; assert submit() actually executes work on this Python.
+    PYTHONPATH="$out/${python3.sitePackages}" \
+      ${pythonEnv}/bin/python3 -c 'from tools.daemon_pool import DaemonThreadPoolExecutor; assert DaemonThreadPoolExecutor(max_workers=1).submit(lambda: 42).result(timeout=30) == 42'
   ''
   + lib.optionalString stdenv.hostPlatform.isLinux ''
     # Matrix E2EE: mautrix.crypto must import and the disable switch wired in.
