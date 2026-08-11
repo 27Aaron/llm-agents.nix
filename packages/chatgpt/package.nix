@@ -110,13 +110,16 @@ stdenv.mkDerivation {
     wayland
   ];
 
-  # The archive includes musl and glibc prebuilds for a few Node modules.
-  # NixOS uses the glibc variants, so the musl loader is intentionally absent.
+  # The archive includes musl, glibc, and Android prebuilds for a few Node
+  # modules. NixOS uses the glibc variants, so the other runtimes are
+  # intentionally absent.
   # The Qt shims are optional and selected dynamically, so autoPatchelf cannot
   # resolve both of their runtimes during its direct dependency pass. Their
   # version-specific RPATHs are added in postFixup below.
   autoPatchelfIgnoreMissingDeps = [
+    "libc++_shared.so"
     "libc.musl-x86_64.so.1"
+    "liblog.so"
     "libQt5Core.so.5"
     "libQt5Gui.so.5"
     "libQt5Widgets.so.5"
