@@ -1206,6 +1206,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>mcptoon</strong> - Token-efficient MCP CLI client that converts tool discovery and results to compact TOON output</summary>
+
+- **Source**: source
+- **License**: Apache-2.0
+- **Homepage**: https://github.com/activeing123/mcptoon
+- **Usage**: `nix run github:numtide/llm-agents.nix#mcptoon -- --help`
+- **Nix**: [packages/mcptoon/package.nix](packages/mcptoon/package.nix)
+
+</details>
+<details>
 <summary><strong>officecli</strong> - CLI for creating and editing Office Open XML documents</summary>
 
 - **Source**: source
