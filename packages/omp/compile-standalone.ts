@@ -7,13 +7,15 @@
 //
 // Usage (from packages/coding-agent, like upstream's build-binary.ts, so that
 // bare package imports emitted by the virtual-module plugin resolve the same
-// way): bun compile-standalone.ts <bun-compile-target>
+// way): bun compile-standalone.ts <bun-executable-template>
 
 import { createRequire } from "node:module";
 import * as path from "node:path";
 
-const target = process.argv[2];
-if (!target) throw new Error("usage: compile-standalone.ts <bun-compile-target>");
+const executablePath = process.argv[2];
+if (!executablePath) {
+	throw new Error("usage: compile-standalone.ts <bun-executable-template>");
+}
 
 const codingAgentDir = process.cwd();
 const repoRoot = path.resolve(codingAgentDir, "..", "..");
@@ -34,5 +36,5 @@ await compileCodingAgent({
 	entrypoint: path.join(codingAgentDir, "src", "cli.ts"),
 	outfile: path.join(repoRoot, "dist", "omp"),
 	transformersVersion: transformersManifest.version,
-	target: target as Bun.Build.CompileTarget,
+	executablePath,
 });
