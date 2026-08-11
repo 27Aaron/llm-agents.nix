@@ -371,7 +371,7 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
-<summary><strong>qoder-cli-cn</strong> - 终端原生的 AI 编程搭档，也是可被集成的智能体引擎。</summary>
+<summary><strong>qoder-cli-cn</strong> - Qoder CLI (mainland China edition) - terminal-based AI coding assistant for China-region accounts</summary>
 
 - **Source**: binary
 - **License**: unfree

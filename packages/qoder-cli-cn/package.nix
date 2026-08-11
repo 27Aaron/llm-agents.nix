@@ -47,7 +47,7 @@ stdenv.mkDerivation {
   passthru.category = "AI Coding Agents";
 
   meta = with lib; {
-    description = "终端原生的 AI 编程搭档，也是可被集成的智能体引擎。";
+    description = "Qoder CLI (mainland China edition) - terminal-based AI coding assistant for China-region accounts";
     homepage = "https://qoder.cn";
     changelog = "https://qoder.cn/changelog";
     downloadPage = "https://qoder.cn/download";
