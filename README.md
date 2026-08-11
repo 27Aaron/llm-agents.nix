@@ -464,16 +464,6 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
-<summary><strong>hermes-desktop</strong> - Desktop companion for Hermes Agent</summary>
-
-- **Source**: source
-- **License**: MIT
-- **Homepage**: https://github.com/fathah/hermes-desktop
-- **Usage**: `nix run github:numtide/llm-agents.nix#hermes-desktop -- --help`
-- **Nix**: [packages/hermes-desktop/package.nix](packages/hermes-desktop/package.nix)
-
-</details>
-<details>
 <summary><strong>hermes-hud</strong> - TUI consciousness monitor for Hermes Agent</summary>
 
 - **Source**: source
@@ -481,6 +471,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 - **Homepage**: https://github.com/joeynyc/hermes-hud
 - **Usage**: `nix run github:numtide/llm-agents.nix#hermes-hud -- --help`
 - **Nix**: [packages/hermes-hud/package.nix](packages/hermes-hud/package.nix)
+
+</details>
+<details>
+<summary><strong>hermes-one</strong> - Hermes One, community desktop companion for Hermes Agent</summary>
+
+- **Source**: source
+- **License**: MIT
+- **Homepage**: https://github.com/fathah/hermes-desktop
+- **Usage**: `nix run github:numtide/llm-agents.nix#hermes-one -- --help`
+- **Nix**: [packages/hermes-one/package.nix](packages/hermes-one/package.nix)
 
 </details>
 <details>
