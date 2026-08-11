@@ -45,15 +45,16 @@
 }:
 
 let
-  source = builtins.fromJSON (builtins.readFile ./hashes.json);
+  sourceData = builtins.fromJSON (builtins.readFile ./hashes.json);
+  platform = stdenv.hostPlatform.system;
+  source = sourceData.sources.${platform} or (throw "Unsupported system: ${platform}");
 in
 stdenv.mkDerivation {
   pname = "chatgpt";
   inherit (source) version;
 
   src = fetchurl {
-    url = "https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest/chatgpt_amd64.deb";
-    inherit (source) hash;
+    inherit (source) url hash;
   };
 
   nativeBuildInputs = [
@@ -171,6 +172,9 @@ stdenv.mkDerivation {
     sourceProvenance = with sourceTypes; [ binaryNativeCode ];
     maintainers = with flake.lib.maintainers; [ whazor ];
     mainProgram = "chatgpt";
-    platforms = [ "x86_64-linux" ];
+    platforms = [
+      "x86_64-linux"
+      "aarch64-linux"
+    ];
   };
 }

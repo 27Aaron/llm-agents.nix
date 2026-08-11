@@ -17,27 +17,29 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 from updater import load_hashes, save_hashes, should_update
 
 HASHES_FILE = Path(__file__).parent / "hashes.json"
-URL = (
-    "https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest/chatgpt_amd64.deb"
-)
+URL_BASE = "https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest"
+PLATFORMS = {
+    "aarch64-linux": "chatgpt_arm64.deb",
+    "x86_64-linux": "chatgpt_amd64.deb",
+}
 USER_AGENT = (
     "llm-agents.nix package updater (+https://github.com/numtide/llm-agents.nix)"
 )
 AR_HEADER_SIZE = 60
 
 
-def request(*, method: str = "GET") -> urllib.request.Request:
+def request(url: str, *, method: str = "GET") -> urllib.request.Request:
     """Build a request accepted by OpenAI's CDN."""
     return urllib.request.Request(
-        URL,
+        url,
         method=method,
         headers={"User-Agent": USER_AGENT},
     )
 
 
-def remote_etag() -> str | None:
+def remote_etag(url: str) -> str | None:
     """Return the latest artifact's ETag when the server supplies one."""
-    with urllib.request.urlopen(request(method="HEAD")) as response:
+    with urllib.request.urlopen(request(url, method="HEAD")) as response:
         etag = response.headers.get("ETag")
         return str(etag) if etag is not None else None
 
@@ -79,36 +81,64 @@ def debian_version(archive: BinaryIO) -> str:
     raise ValueError(msg)
 
 
-def main() -> None:
-    """Refresh the pinned version and hash when OpenAI changes the artifact."""
-    current = load_hashes(HASHES_FILE)
-    etag = remote_etag()
+def update_source(
+    platform: str,
+    filename: str,
+    current: dict[str, str],
+) -> tuple[dict[str, str], bool]:
+    """Refresh one platform source if its upstream ETag changed."""
+    url = f"{URL_BASE}/{filename}"
+    etag = remote_etag(url)
     if etag and etag == current.get("etag"):
-        print("chatgpt: already up to date")
-        return
+        print(f"{platform}: already up to date")
+        return current, False
 
-    print("Downloading latest ChatGPT Debian package...")
+    print(f"{platform}: downloading latest ChatGPT Debian package...")
     with tempfile.TemporaryFile() as download:
         hasher = hashlib.sha256()
-        with urllib.request.urlopen(request()) as response:
+        with urllib.request.urlopen(request(url)) as response:
             while chunk := response.read(1024 * 1024):
                 download.write(chunk)
                 hasher.update(chunk)
 
         version = debian_version(download)
         if not should_update(current.get("version", ""), version):
-            print(f"Warning: artifact changed without a version bump ({version})")
+            print(
+                f"Warning: {platform} artifact changed without a version bump ({version})"
+            )
 
         digest = base64.b64encode(hasher.digest()).decode()
-    save_hashes(
-        HASHES_FILE,
-        {
-            "version": version,
-            "hash": f"sha256-{digest}",
-            "etag": etag,
-        },
-    )
-    print(f"Updated to {version}")
+    updated = {
+        "version": version,
+        "url": url,
+        "hash": f"sha256-{digest}",
+    }
+    if etag:
+        updated["etag"] = etag
+    print(f"{platform}: updated to {version}")
+    return updated, True
+
+
+def main() -> None:
+    """Refresh every pinned platform when OpenAI changes an artifact."""
+    current = load_hashes(HASHES_FILE)
+    current_sources = current.get("sources", {})
+    sources = {}
+    changed = False
+    for platform, filename in PLATFORMS.items():
+        source, source_changed = update_source(
+            platform,
+            filename,
+            current_sources.get(platform, {}),
+        )
+        sources[platform] = source
+        changed = changed or source_changed
+
+    if not changed:
+        print("chatgpt: already up to date")
+        return
+
+    save_hashes(HASHES_FILE, {"sources": sources})
 
 
 if __name__ == "__main__":
