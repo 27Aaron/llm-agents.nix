@@ -1,11 +1,8 @@
 {
-  lib,
-  flake,
   stdenv,
   fetchurl,
-  wrapBuddy,
-  versionCheckHook,
-  versionCheckHomeHook,
+  flake,
+  qoder-cli,
 }:
 
 let
@@ -15,19 +12,15 @@ let
   platform = stdenv.hostPlatform.system;
   src = platforms.${platform} or (throw "Unsupported system: ${platform}");
 in
-stdenv.mkDerivation {
+# Same bun-compiled binary as qoder-cli, but built for the mainland China
+# service: separate release channel/CDN, binary name and account backend.
+qoder-cli.overrideAttrs (old: {
   pname = "qoder-cli-cn";
   inherit version;
 
   src = fetchurl {
     inherit (src) url hash;
   };
-
-  nativeBuildInputs = lib.optionals stdenv.hostPlatform.isLinux [ wrapBuddy ];
-
-  sourceRoot = ".";
-
-  dontStrip = true; # do not mess with the bun runtime
 
   installPhase = ''
     runHook preInstall
@@ -37,28 +30,12 @@ stdenv.mkDerivation {
     runHook postInstall
   '';
 
-  doInstallCheck = true;
-
-  nativeInstallCheckInputs = [
-    versionCheckHook
-    versionCheckHomeHook
-  ];
-
-  passthru.category = "AI Coding Agents";
-
-  meta = with lib; {
+  meta = old.meta // {
     description = "Qoder CLI (mainland China edition) - terminal-based AI coding assistant for China-region accounts";
     homepage = "https://qoder.cn";
     changelog = "https://qoder.cn/changelog";
     downloadPage = "https://qoder.cn/download";
-    license = flake.lib.licenses.unfree;
     maintainers = with flake.lib.maintainers; [ RyougiShiki-214 ];
-    platforms = [
-      "x86_64-linux"
-      "aarch64-linux"
-      "aarch64-darwin"
-    ];
-    sourceProvenance = with sourceTypes; [ binaryNativeCode ];
     mainProgram = "qoderclicn";
   };
-}
+})
