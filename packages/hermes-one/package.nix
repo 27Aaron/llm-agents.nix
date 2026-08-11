@@ -18,7 +18,7 @@ let
   electron = electron_41;
 in
 buildNpmPackage rec {
-  pname = "hermes-desktop";
+  pname = "hermes-one";
   version = "0.7.6";
 
   src = fetchFromGitHub {
@@ -70,9 +70,9 @@ buildNpmPackage rec {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/share/hermes-desktop $out/bin
+    mkdir -p $out/share/hermes-one $out/bin
 
-    cp -r out package.json $out/share/hermes-desktop/
+    cp -r out package.json $out/share/hermes-one/
 
     # Runtime dependencies for the main process: electron-vite externalizes
     # everything in package.json "dependencies" (better-sqlite3, i18next,
@@ -81,15 +81,15 @@ buildNpmPackage rec {
     # Drop node-gyp intermediates; only the compiled addon is needed.
     find node_modules/better-sqlite3/build -mindepth 1 -maxdepth 1 ! -name Release -exec rm -rf {} +
     find node_modules/better-sqlite3/build/Release -mindepth 1 ! -name better_sqlite3.node -exec rm -rf {} +
-    cp -r node_modules $out/share/hermes-desktop/
+    cp -r node_modules $out/share/hermes-one/
 
-    install -Dm644 build/icon.png $out/share/icons/hicolor/512x512/apps/hermes-desktop.png
+    install -Dm644 build/icon.png $out/share/icons/hicolor/512x512/apps/hermes-one.png
 
     # app.isPackaged stays false on purpose: upstream skips its
     # electron-updater code path in that case, which is what we want for a
     # store-managed install.
-    makeWrapper ${lib.getExe electron} $out/bin/hermes-desktop \
-      --add-flags $out/share/hermes-desktop \
+    makeWrapper ${lib.getExe electron} $out/bin/hermes-one \
+      --add-flags $out/share/hermes-one \
       --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}" \
       --inherit-argv0
 
@@ -98,12 +98,13 @@ buildNpmPackage rec {
 
   desktopItems = [
     (makeDesktopItem {
-      name = "hermes-desktop";
-      desktopName = "Hermes Agent";
+      name = "hermes-one";
+      desktopName = "Hermes One";
       comment = "Self-improving AI assistant desktop app";
-      exec = "hermes-desktop %U";
-      icon = "hermes-desktop";
+      exec = "hermes-one %U";
+      icon = "hermes-one";
       categories = [ "Utility" ];
+      # Electron derives the window class from upstream's package.json name.
       startupWMClass = "hermes-desktop";
     })
   ];
@@ -111,13 +112,13 @@ buildNpmPackage rec {
   passthru.category = "AI Assistants";
 
   meta = with lib; {
-    description = "Desktop companion for Hermes Agent";
+    description = "Hermes One, community desktop companion for Hermes Agent";
     homepage = "https://github.com/fathah/hermes-desktop";
     changelog = "https://github.com/fathah/hermes-desktop/releases/tag/v${version}";
     license = licenses.mit;
     sourceProvenance = with sourceTypes; [ fromSource ];
     maintainers = with flake.lib.maintainers; [ smdex ];
     platforms = platforms.linux ++ platforms.darwin;
-    mainProgram = "hermes-desktop";
+    mainProgram = "hermes-one";
   };
 }
