@@ -81,13 +81,65 @@ def build_config(
     )
 
 
-def create_or_update_pr(config: PrConfig, *, labels: str, auto_merge: bool) -> None:
+def dirty_paths() -> list[str]:
+    """Return every path touched in the work tree (modified or untracked)."""
+    out = run(["git", "status", "--porcelain=v1", "-z"], capture=True).stdout
+    tokens = out.split("\0")
+    paths: list[str] = []
+    i = 0
+    while i < len(tokens):
+        entry = tokens[i]
+        i += 1
+        if not entry:
+            continue
+        status, path = entry[:2], entry[3:]
+        paths.append(path)
+        # renames/copies carry the source path in the next token
+        if "R" in status or "C" in status:
+            paths.append(tokens[i])
+            i += 1
+    return paths
+
+
+def check_confinement(update_type: UpdateType, name: str) -> None:
+    """Refuse to commit changes outside the updater's own territory.
+
+    Updater code (per-package update.py, nix-update) runs untrusted input;
+    a package update may only touch its own directory, a flake-input
+    update only the lock file. Anything else aborts before commit/push.
+    """
+    match update_type:
+        case UpdateType.PACKAGE:
+            allowed: tuple[str, ...] = (f"packages/{name}/",)
+        case UpdateType.FLAKE_INPUT:
+            allowed = ("flake.lock",)
+
+    stray = [p for p in dirty_paths() if not p.startswith(allowed)]
+    if stray:
+        log.error(
+            "::error::update of %s changed files outside %s: %s",
+            name,
+            ", ".join(allowed),
+            ", ".join(stray),
+        )
+        sys.exit(1)
+
+
+def create_or_update_pr(
+    config: PrConfig,
+    *,
+    update_type: UpdateType,
+    name: str,
+    labels: str,
+    auto_merge: bool,
+) -> None:
     """Stage, commit, push, and create/update the PR.
 
     The workflow's "Prepare update branch" step has already checked out
     ``config.branch`` (rebased onto main if it existed), so we only need to
     commit the updater's changes on top and force-push.
     """
+    check_confinement(update_type, name)
     run(["git", "add", "."])
     # The commit may already exist on the reused branch if a previous run
     # pushed it but failed before creating the PR.
@@ -163,8 +215,9 @@ def main() -> None:
         sys.exit(1)
 
     args = parse_args()
+    update_type = UpdateType(args.type)
     config = build_config(
-        update_type=UpdateType(args.type),
+        update_type=update_type,
         name=args.name,
         current_version=args.current_version,
         new_version=args.new_version,
@@ -172,6 +225,8 @@ def main() -> None:
     )
     create_or_update_pr(
         config,
+        update_type=update_type,
+        name=args.name,
         labels=os.environ.get("PR_LABELS", "dependencies,automated"),
         auto_merge=os.environ.get("AUTO_MERGE", "false") == "true",
     )
