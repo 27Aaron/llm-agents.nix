@@ -6,6 +6,7 @@
   dpkg,
   formatelf,
   makeWrapper,
+  bubblewrap,
   alsa-lib,
   at-spi2-atk,
   at-spi2-core,
@@ -153,7 +154,12 @@ stdenv.mkDerivation {
     grep -aFq "false /* nix:skip report */" "$appAsar"
 
     wrapProgram "$out/lib/chatgpt/ChatGPT" \
-      --prefix PATH : ${lib.makeBinPath [ xdg-utils ]}
+      --prefix PATH : ${
+        lib.makeBinPath [
+          bubblewrap
+          xdg-utils
+        ]
+      }
 
     runHook postInstall
   '';
