@@ -11,8 +11,11 @@ Environment variables:
 import argparse
 import logging
 import os
+import shutil
 import sys
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 
 from lib import UpdateType, run
 
@@ -29,8 +32,12 @@ class PrConfig:
     commit_message: str
 
 
-def gh_get_pr_number(branch: str) -> str | None:
-    """Get the PR number for a branch, or None if no PR exists."""
+def gh_get_pr_number(branch: str, repo_dir: Path) -> str | None:
+    """Get the PR number for a branch, or None if no PR exists.
+
+    Runs from the clean clone: gh resolves the target repository from
+    the cwd's git remote, and the updater's checkout is untrusted.
+    """
     result = run(
         [
             "gh",
@@ -44,6 +51,7 @@ def gh_get_pr_number(branch: str) -> str | None:
             ".[0].number // empty",
         ],
         capture=True,
+        cwd=str(repo_dir),
     )
     return result.stdout.strip() or None
 
@@ -81,11 +89,53 @@ def build_config(
     )
 
 
-def dirty_paths() -> list[str]:
-    """Return every path touched in the work tree (modified or untracked)."""
-    out = run(["git", "status", "--porcelain=v1", "-z"], capture=True).stdout
+BOT_NAME = "github-actions[bot]"
+BOT_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com"
+
+
+def git_ro(repo: Path, *args: str) -> str:
+    """Run a read-only git command against the updater's (untrusted) repo.
+
+    The updater could have planted hooks or config (core.fsmonitor,
+    url.*.insteadOf, credential helpers) in that repo's .git, so every
+    command here disables the code-executing knobs and nothing in this
+    module ever commits, fetches, or pushes from that repo.
+    """
+    result = run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "core.hooksPath=/dev/null",
+            *args,
+        ],
+        capture=True,
+    )
+    return result.stdout
+
+
+def allowed_roots(update_type: UpdateType, name: str) -> tuple[str, ...]:
+    """Return the paths an update is allowed to touch."""
+    match update_type:
+        case UpdateType.PACKAGE:
+            return (f"packages/{name}/",)
+        case UpdateType.FLAKE_INPUT:
+            return ("flake.lock",)
+
+
+def changed_paths(repo: Path) -> list[str]:
+    """List every path that differs from origin/main.
+
+    Covers staged, unstaged, untracked, and already-committed-on-branch
+    changes — a malicious updater could hide changes behind its own commit.
+    """
+    paths: set[str] = set()
+
+    out = git_ro(repo, "status", "--porcelain=v1", "-z")
     tokens = out.split("\0")
-    paths: list[str] = []
     i = 0
     while i < len(tokens):
         entry = tokens[i]
@@ -93,28 +143,26 @@ def dirty_paths() -> list[str]:
         if not entry:
             continue
         status, path = entry[:2], entry[3:]
-        paths.append(path)
+        paths.add(path)
         # renames/copies carry the source path in the next token
         if "R" in status or "C" in status:
-            paths.append(tokens[i])
+            paths.add(tokens[i])
             i += 1
-    return paths
+
+    out = git_ro(repo, "diff", "--name-only", "-z", "origin/main")
+    paths.update(p for p in out.split("\0") if p)
+
+    return sorted(paths)
 
 
-def check_confinement(update_type: UpdateType, name: str) -> None:
-    """Refuse to commit changes outside the updater's own territory.
+def check_confinement(repo: Path, allowed: tuple[str, ...], name: str) -> None:
+    """Refuse to publish changes outside the updater's own territory.
 
-    Updater code (per-package update.py, nix-update) runs untrusted input;
-    a package update may only touch its own directory, a flake-input
-    update only the lock file. Anything else aborts before commit/push.
+    Updater code (per-package update.py, nix-update) processes untrusted
+    input; a package update may only touch its own directory, a flake-input
+    update only the lock file. Anything else aborts the job loudly.
     """
-    match update_type:
-        case UpdateType.PACKAGE:
-            allowed: tuple[str, ...] = (f"packages/{name}/",)
-        case UpdateType.FLAKE_INPUT:
-            allowed = ("flake.lock",)
-
-    stray = [p for p in dirty_paths() if not p.startswith(allowed)]
+    stray = [p for p in changed_paths(repo) if not p.startswith(allowed)]
     if stray:
         log.error(
             "::error::update of %s changed files outside %s: %s",
@@ -125,6 +173,79 @@ def check_confinement(update_type: UpdateType, name: str) -> None:
         sys.exit(1)
 
 
+def sync_path(src: Path, dst: Path) -> None:
+    """Mirror one allowed file or directory from the dirty tree."""
+    if dst.is_symlink() or dst.is_file():
+        dst.unlink()
+    elif dst.is_dir():
+        shutil.rmtree(dst)
+    if src.is_dir() and not src.is_symlink():
+        shutil.copytree(src, dst, symlinks=True)
+    elif src.is_symlink() or src.exists():
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst, follow_symlinks=False)
+
+
+def clone_and_publish(config: PrConfig, allowed: tuple[str, ...]) -> Path:
+    """Build the update branch in a pristine clone and push it.
+
+    The updater ran with full write access to the work tree AND its .git
+    directory (hooks, fsmonitor, insteadOf rewrites, ...), so that repo
+    must never see the App token. Instead: shallow-clone main afresh,
+    copy only the allowed paths over from the dirty tree, commit, push.
+    Confinement is thereby structural — stray changes are not copied —
+    and check_confinement() exists to fail the job loudly on top.
+    """
+    dirty = Path.cwd()
+    clean = Path(os.environ.get("RUNNER_TEMP") or tempfile.gettempdir()) / "clean-repo"
+    if clean.exists():
+        shutil.rmtree(clean)
+
+    token = os.environ["GH_TOKEN"]
+    repo_slug = os.environ["GITHUB_REPOSITORY"]
+    url = f"https://x-access-token:{token}@github.com/{repo_slug}.git"
+
+    run(["git", "clone", "--quiet", "--depth=1", "--branch", "main", url, str(clean)])
+    run(["git", "-C", str(clean), "config", "user.name", BOT_NAME])
+    run(["git", "-C", str(clean), "config", "user.email", BOT_EMAIL])
+    run(["git", "-C", str(clean), "checkout", "-q", "-B", config.branch])
+
+    for rel in allowed:
+        sync_path(dirty / rel, clean / rel)
+
+    run(["git", "-C", str(clean), "add", "--all", "--", *allowed])
+    if (
+        run(
+            ["git", "-C", str(clean), "diff", "--quiet", "--cached"], check=False
+        ).returncode
+        != 0
+    ):
+        run(
+            [
+                "git",
+                "-C",
+                str(clean),
+                "commit",
+                "-q",
+                "-m",
+                config.commit_message,
+                "--signoff",
+            ]
+        )
+    run(
+        [
+            "git",
+            "-C",
+            str(clean),
+            "push",
+            "--force",
+            "origin",
+            f"HEAD:{config.branch}",
+        ]
+    )
+    return clean
+
+
 def create_or_update_pr(
     config: PrConfig,
     *,
@@ -133,21 +254,18 @@ def create_or_update_pr(
     labels: str,
     auto_merge: bool,
 ) -> None:
-    """Stage, commit, push, and create/update the PR.
+    """Verify confinement, publish the branch from a clean clone, open the PR.
 
-    The workflow's "Prepare update branch" step has already checked out
-    ``config.branch`` (rebased onto main if it existed), so we only need to
-    commit the updater's changes on top and force-push.
+    The workflow's "Prepare update branch" step checked out ``config.branch``
+    (rebased onto main if it existed) before the updater ran, so the dirty
+    work tree already carries any manual fixup commits; copying the allowed
+    paths preserves their content (squashed into the update commit).
     """
-    check_confinement(update_type, name)
-    run(["git", "add", "."])
-    # The commit may already exist on the reused branch if a previous run
-    # pushed it but failed before creating the PR.
-    if run(["git", "diff", "--quiet", "--cached"], check=False).returncode != 0:
-        run(["git", "commit", "-m", config.commit_message, "--signoff"])
-    run(["git", "push", "--force", "origin", f"HEAD:{config.branch}"])
+    allowed = allowed_roots(update_type, name)
+    check_confinement(Path.cwd(), allowed, name)
+    clean = clone_and_publish(config, allowed)
 
-    pr_number = gh_get_pr_number(config.branch)
+    pr_number = gh_get_pr_number(config.branch, clean)
 
     if pr_number:
         log.info("Updating existing PR #%s", pr_number)
@@ -161,7 +279,8 @@ def create_or_update_pr(
                 config.title,
                 "--body",
                 config.body,
-            ]
+            ],
+            cwd=str(clean),
         )
     else:
         log.info("Creating new PR")
@@ -185,13 +304,18 @@ def create_or_update_pr(
                 "--head",
                 config.branch,
                 *label_args,
-            ]
+            ],
+            cwd=str(clean),
         )
-        pr_number = gh_get_pr_number(config.branch)
+        pr_number = gh_get_pr_number(config.branch, clean)
 
     if auto_merge and pr_number:
         log.info("Enabling auto-merge for PR #%s", pr_number)
-        run(["gh", "pr", "merge", pr_number, "--auto", "--squash"], check=False)
+        run(
+            ["gh", "pr", "merge", pr_number, "--auto", "--squash"],
+            check=False,
+            cwd=str(clean),
+        )
 
 
 def parse_args() -> argparse.Namespace:

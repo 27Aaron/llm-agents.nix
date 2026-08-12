@@ -86,8 +86,9 @@ jobs:
         # executes with the App token.
         run: cp -r .github/ci "$RUNNER_TEMP/ci"
       - name: Prepare update branch
-        # Reuse the existing update/* branch (if any) so manual fixup commits on the
-        # open PR are preserved. Rebase it onto main and let the updater commit on top.
+        # Reuse the existing update/* branch (if any) so manual fixups on the open
+        # PR carry into the work tree. Rebase onto main; the updater edits on top,
+        # and create_pr.py copies the package's files into a clean clone to publish.
         env:
           TYPE: ${{ matrix.type }}
           NAME: ${{ matrix.name }}
@@ -145,8 +146,10 @@ jobs:
           # Via env, not inline interpolation: the version string comes from
           # updater output and must never reach a shell unquoted.
           NEW_VERSION: ${{ steps.update.outputs.new_version }}
+        # The script never commits or pushes from this checkout — the
+        # updater had write access to it, .git included. It publishes
+        # from a fresh clone it creates itself.
         run: |
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           "$RUNNER_TEMP/ci/create_pr.py" "$TYPE" "$NAME" "$CURRENT_VERSION" "$NEW_VERSION"
   update-readme:
     needs: [discover, update]

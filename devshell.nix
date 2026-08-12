@@ -6,6 +6,8 @@ pkgs.mkShellNoCC {
 
     # Tools needed for update scripts
     pkgs.bash
+    # Sandbox for updater code (.github/ci/update.py); Linux-only.
+    (pkgs.lib.optional pkgs.stdenv.isLinux pkgs.bubblewrap)
     pkgs.coreutils
     pkgs.curl
     pkgs.gh
