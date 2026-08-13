@@ -11,19 +11,17 @@ let
   };
 
   # Check-only: nushell has no mature autoformatter (nufmt is alpha), so we
-  # validate that each .nu file parses. nu-check prints true/false and always
-  # exits 0, so translate a false into a non-zero exit for treefmt.
+  # just validate that each .nu file parses. Plain `nu-check` returns a
+  # true/false value and exits 0, but `nu-check --debug` raises a real error
+  # on a parse failure (printing the diagnostic), so `| ignore` gives us a
+  # clean exit code: 0 on success (output suppressed), non-zero on error.
   nu-check = pkgs.writeShellApplication {
     name = "nu-check";
     runtimeInputs = [ pkgs.nushell ];
     text = ''
       status=0
       for f in "$@"; do
-        if [ "$(nu --no-config-file --commands "nu-check '$f'")" != "true" ]; then
-          echo "nu-check: parse error in $f" >&2
-          nu --no-config-file --commands "nu-check --debug '$f'" >&2 || true
-          status=1
-        fi
+        nu --no-config-file --commands "nu-check --debug '$f' | ignore" || status=1
       done
       exit "$status"
     '';
