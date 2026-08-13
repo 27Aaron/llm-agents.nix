@@ -9,6 +9,25 @@ let
     ];
     text = builtins.readFile ./../../scripts/check.sh;
   };
+
+  # Check-only: nushell has no mature autoformatter (nufmt is alpha), so we
+  # validate that each .nu file parses. nu-check prints true/false and always
+  # exits 0, so translate a false into a non-zero exit for treefmt.
+  nu-check = pkgs.writeShellApplication {
+    name = "nu-check";
+    runtimeInputs = [ pkgs.nushell ];
+    text = ''
+      status=0
+      for f in "$@"; do
+        if [ "$(nu --no-config-file --commands "nu-check '$f'")" != "true" ]; then
+          echo "nu-check: parse error in $f" >&2
+          nu --no-config-file --commands "nu-check --debug '$f'" >&2 || true
+          status=1
+        fi
+      done
+      exit "$status"
+    '';
+  };
 in
 {
   package = pkgs.treefmt;
@@ -65,5 +84,11 @@ in
     includes = [ "*.py" ];
     pipeline = "python";
     priority = 3;
+  };
+
+  # Nushell scripts: parse-check only (see nu-check above)
+  settings.formatter.nu-check = {
+    command = "${nu-check}/bin/nu-check";
+    includes = [ "*.nu" ];
   };
 }
