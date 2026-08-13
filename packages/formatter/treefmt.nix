@@ -10,21 +10,39 @@ let
     text = builtins.readFile ./../../scripts/check.sh;
   };
 
-  # Check-only: nushell has no mature autoformatter (nufmt is alpha), so we
-  # just validate that each .nu file parses. Plain `nu-check` returns a
-  # true/false value and exits 0, but `nu-check --debug` raises a real error
-  # on a parse failure (printing the diagnostic), so `| ignore` gives us a
-  # clean exit code: 0 on success (output suppressed), non-zero on error.
-  nu-check = pkgs.writeShellApplication {
-    name = "nu-check";
-    runtimeInputs = [ pkgs.nushell ];
-    text = ''
-      status=0
-      for f in "$@"; do
-        nu --no-config-file --commands "nu-check --debug '$f' | ignore" || status=1
-      done
-      exit "$status"
-    '';
+  # writeShellApplication, but the body is a Nushell script instead of bash:
+  # adds a nu shebang, puts runtimeInputs on PATH, and validates the script
+  # parses at build time with nu-check (the nushell analogue of shellcheck).
+  writeNushellApplication =
+    {
+      name,
+      text,
+      runtimeInputs ? [ ],
+    }:
+    pkgs.writeTextFile {
+      inherit name;
+      executable = true;
+      destination = "/bin/${name}";
+      text = ''
+        #!${lib.getExe pkgs.nushell}
+      ''
+      + lib.optionalString (runtimeInputs != [ ]) ''
+        $env.PATH = ("${lib.makeBinPath runtimeInputs}" | split row (char esep) | append $env.PATH)
+      ''
+      + "\n"
+      + text;
+      checkPhase = ''
+        ${lib.getExe pkgs.nushell} --no-config-file --commands "nu-check --debug $target | ignore"
+      '';
+    };
+
+  # Check-only nushell parse validator; see scripts/treefmt-nu-check.nu.
+  # NB: the binary must NOT be named "nu-check". Nushell running a script whose
+  # name collides with a builtin resolves the internal `nu-check` call to the
+  # (flagless) external script itself, breaking `nu-check --debug`.
+  nu-parse-check = writeNushellApplication {
+    name = "nu-parse-check";
+    text = builtins.readFile ./../../scripts/treefmt-nu-check.nu;
   };
 in
 {
@@ -84,9 +102,9 @@ in
     priority = 3;
   };
 
-  # Nushell scripts: parse-check only (see nu-check above)
+  # Nushell scripts: parse-check only (see nu-parse-check above)
   settings.formatter.nu-check = {
-    command = "${nu-check}/bin/nu-check";
+    command = "${nu-parse-check}/bin/nu-parse-check";
     includes = [ "*.nu" ];
   };
 }
