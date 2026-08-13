@@ -10,9 +10,8 @@ let
     text = builtins.readFile ./../../scripts/check.sh;
   };
 
-  # writeShellApplication, but the body is a Nushell script instead of bash:
-  # adds a nu shebang, puts runtimeInputs on PATH, and validates the script
-  # parses at build time with nu-check (the nushell analogue of shellcheck).
+  # Like writeShellApplication but the body is Nushell: nu shebang, runtimeInputs
+  # on PATH, and a build-time nu-check parse validation (nushell's shellcheck).
   writeNushellApplication =
     {
       name,
@@ -36,10 +35,9 @@ let
       '';
     };
 
-  # Check-only nushell parse validator; see scripts/treefmt-nu-check.nu.
-  # NB: the binary must NOT be named "nu-check". Nushell running a script whose
-  # name collides with a builtin resolves the internal `nu-check` call to the
-  # (flagless) external script itself, breaking `nu-check --debug`.
+  # Parse validator; logic in scripts/treefmt-nu-check.nu. Must not be named
+  # "nu-check": a script whose name shadows a builtin makes nushell resolve the
+  # internal `nu-check` call to the external script, breaking `nu-check --debug`.
   nu-parse-check = writeNushellApplication {
     name = "nu-parse-check";
     text = builtins.readFile ./../../scripts/treefmt-nu-check.nu;

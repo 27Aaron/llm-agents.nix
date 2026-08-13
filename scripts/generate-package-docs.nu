@@ -1,14 +1,13 @@
 #!/usr/bin/env nix
 #! nix shell --inputs-from .# nixpkgs#nushell --command nu
 
-# Generate markdown documentation for all packages and update README.md.
-# Nushell port of generate-package-docs.py; output is byte-for-byte identical.
-# The heavy lifting (metadata extraction) lives in generate-package-docs.nix.
+# Generate the package-docs section of README.md.
+# Metadata extraction lives in generate-package-docs.nix.
 
 const BEGIN_MARKER = "<!-- BEGIN GENERATED PACKAGE DOCS -->"
 const END_MARKER = "<!-- END GENERATED PACKAGE DOCS -->"
 
-# Category display order, mirroring the Python list.
+# Category display order.
 const CATEGORY_ORDER = [
   "AI Coding Agents"
   "AI Assistants"
@@ -25,8 +24,7 @@ const CATEGORY_ORDER = [
   "Uncategorized"
 ]
 
-# Evaluate every package's metadata in one nix eval, dropping the nulls
-# (packages that were filtered out or failed to evaluate).
+# All package metadata in one nix eval; drop nulls (filtered out or failed).
 def all-packages-metadata [nix_file: string]: nothing -> table {
   let result = (^nix eval --json --file $nix_file | complete)
   if $result.exit_code != 0 {
@@ -43,7 +41,7 @@ def all-packages-metadata [nix_file: string]: nothing -> table {
   | sort-by package
 }
 
-# Render one package's <details> block; matches generate_package_doc exactly.
+# Render one package's <details> block.
 def package-doc [package: string, meta: record]: nothing -> string {
   let description = ($meta.description? | default "No description available")
   let source = ($meta.sourceType? | default "unknown")
@@ -63,11 +61,11 @@ def package-doc [package: string, meta: record]: nothing -> string {
   }
 
   $lines = ($lines | append $"- **Usage**: `nix run github:numtide/llm-agents.nix#($package) -- --help`")
-  # Literal ( and ) in the markdown link target are escaped: in a Nushell
-  # interpolated string an unescaped ( opens a subexpression.
+  # Escape the literal ( ) in the link target: in an interpolated string an
+  # unescaped ( opens a subexpression.
   $lines = ($lines | append $"- **Nix**: [packages/($package)/package.nix]\(packages/($package)/package.nix\)")
 
-  # Package-specific README, checked relative to CWD like the Python version.
+  # Optional package-specific README (path relative to CWD).
   if ($"packages/($package)/README.md" | path exists) {
     $lines = ($lines | append $"- **Documentation**: See [packages/($package)/README.md]\(packages/($package)/README.md\) for detailed usage")
   }
@@ -138,8 +136,8 @@ def update-readme [readme_path: string, nix_file: string]: nothing -> any {
 
   let generated = (generate-all-docs $nix_file)
 
-  # before/after are split on literal markers, so this is byte-exact and
-  # independent of how string indices count code points.
+  # Split on the literal markers rather than slice by index, so the result
+  # does not depend on how string indices count code points.
   let before = ($content | split row $BEGIN_MARKER | first)
   let after = ($content | split row $END_MARKER | last)
   let new_content = $"($before)($BEGIN_MARKER)\n\n($generated)\n($END_MARKER)($after)"
