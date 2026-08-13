@@ -62,6 +62,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
     # `aven backup` races its own WAL connection against a `sqlite3 .backup`
     # subprocess and flakes as "database is locked" on loaded runners.
     "--test-threads=1"
+    # New in 0.1.29: these tests spawn absolute system binaries (/usr/bin/tee,
+    # /usr/bin/false) and compile a fixture with `rustc` at run time, none of
+    # which exist in the sandbox, so every invocation fails to start.
+    "--skip=tui::app::tests::custom_commands"
   ];
 
   # Many tests rely on inferring the project from the surrounding git repo;
