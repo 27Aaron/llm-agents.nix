@@ -67,6 +67,7 @@ def sandbox_wrap(cmd: list[str], name: str) -> list[str]:
         *("--tmpfs", "/tmp"),  # noqa: S108 — sandbox mount, not a host temp path
         *("--dir", "/tmp/home"),  # noqa: S108
         *("--setenv", "HOME", "/tmp/home"),  # noqa: S108
+        *("--setenv", "TMPDIR", "/tmp"),  # noqa: S108
         *("--bind", "/nix", "/nix"),
         *("--bind", pkg_dir, pkg_dir),
         *("--chdir", str(Path.cwd())),
