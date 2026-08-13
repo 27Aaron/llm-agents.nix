@@ -26,8 +26,7 @@ jobs:
     secrets:
       CLIENT_ID: ${{ secrets.CLIENT_ID }}
       APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-    # Write access comes from the GitHub App token, minted inside the
-    # called workflow after updater code has run. The default token is
-    # read-only there.
+    # Write access comes from the App token, minted inside the called
+    # workflow after updater code has run.
     permissions:
       contents: read

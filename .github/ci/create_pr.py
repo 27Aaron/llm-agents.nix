@@ -35,8 +35,7 @@ class PrConfig:
 def gh_get_pr_number(branch: str, repo_dir: Path) -> str | None:
     """Get the PR number for a branch, or None if no PR exists.
 
-    Runs from the clean clone: gh resolves the target repository from
-    the cwd's git remote, and the updater's checkout is untrusted.
+    Runs from the clean clone. The updater's checkout is untrusted.
     """
     result = run(
         [
@@ -96,10 +95,8 @@ BOT_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com"
 def git_ro(repo: Path, *args: str) -> str:
     """Run a read-only git command against the updater's (untrusted) repo.
 
-    The updater could have planted hooks or config (core.fsmonitor,
-    url.*.insteadOf, credential helpers) in that repo's .git, so every
-    command here disables the code-executing knobs and nothing in this
-    module ever commits, fetches, or pushes from that repo.
+    The updater could have planted hooks or config in that repo's .git,
+    so disable the code-executing knobs and never push from it.
     """
     result = run(
         [
@@ -130,9 +127,7 @@ def changed_paths(repo: Path) -> list[str]:
     """List every work-tree path that differs from origin/main.
 
     Only the work tree matters: publishing copies files from it, so the
-    index and branch commits are irrelevant. Tracked changes (including
-    ones a malicious updater committed) show up in the diff against
-    origin/main; new files via ls-files.
+    index and branch commits are irrelevant.
     """
     tracked = git_ro(repo, "diff", "--name-only", "-z", "origin/main")
     untracked = git_ro(repo, "ls-files", "--others", "--exclude-standard", "-z")
@@ -140,12 +135,7 @@ def changed_paths(repo: Path) -> list[str]:
 
 
 def check_confinement(repo: Path, allowed: tuple[str, ...], name: str) -> None:
-    """Refuse to publish changes outside the updater's own territory.
-
-    Updater code (per-package update.py, nix-update) processes untrusted
-    input; a package update may only touch its own directory, a flake-input
-    update only the lock file. Anything else aborts the job loudly.
-    """
+    """Abort if the (untrusted) updater changed files outside its territory."""
     stray = [p for p in changed_paths(repo) if not p.startswith(allowed)]
     if stray:
         log.error(
@@ -173,12 +163,9 @@ def sync_path(src: Path, dst: Path) -> None:
 def clone_and_publish(config: PrConfig, allowed: tuple[str, ...]) -> Path:
     """Build the update branch in a pristine clone and push it.
 
-    The updater ran with full write access to the work tree AND its .git
-    directory (hooks, fsmonitor, insteadOf rewrites, ...), so that repo
-    must never see the App token. Instead: shallow-clone main afresh,
-    copy only the allowed paths over from the dirty tree, commit, push.
-    Confinement is thereby structural — stray changes are not copied —
-    and check_confinement() exists to fail the job loudly on top.
+    The updater had write access to the work tree and its .git, so that
+    repo must never see the App token. Instead shallow-clone main afresh
+    and copy over only the allowed paths.
     """
     dirty = Path.cwd()
     clean = Path(os.environ.get("RUNNER_TEMP") or tempfile.gettempdir()) / "clean-repo"
@@ -217,10 +204,9 @@ def create_or_update_pr(
 ) -> None:
     """Verify confinement, publish the branch from a clean clone, open the PR.
 
-    The workflow's "Prepare update branch" step checked out ``config.branch``
-    (rebased onto main if it existed) before the updater ran, so the dirty
-    work tree already carries any manual fixup commits; copying the allowed
-    paths preserves their content (squashed into the update commit).
+    The work tree already carries manual fixups from any existing PR branch,
+    rebased onto main by the workflow. Their content survives the copy,
+    squashed into the update commit.
     """
     allowed = allowed_roots(update_type, name)
     check_confinement(Path.cwd(), allowed, name)

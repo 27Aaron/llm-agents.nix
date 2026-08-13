@@ -27,7 +27,7 @@ def sandbox_works(bwrap: str) -> bool:
     if run(probe, check=False, capture=True).returncode == 0:
         return True
     # Ubuntu 24.04 runners restrict unprivileged user namespaces via
-    # AppArmor; the runner user has passwordless sudo, so lift it.
+    # AppArmor. The runner user has passwordless sudo, so lift the limit.
     if shutil.which("sudo"):
         run(
             ["sudo", "sysctl", "-w", "kernel.apparmor_restrict_unprivileged_userns=0"],
@@ -40,14 +40,9 @@ def sandbox_works(bwrap: str) -> bool:
 def sandbox_wrap(cmd: list[str], name: str) -> list[str]:
     """Confine updater code with bubblewrap.
 
-    Per-package update.py scripts and nix-update process untrusted
-    upstream data. Inside the sandbox the whole filesystem is read-only
-    — including .git and the rest of the work tree — except the
-    package's own directory, /nix (builds, daemon socket), and a fresh
-    tmpfs HOME and /tmp. Network stays available for upstream APIs.
-    create_pr.py enforces the same boundary again at publish time.
-
-    Set UPDATE_SANDBOX=0 to opt out locally.
+    The filesystem is read-only except the package's own directory, /nix,
+    and a fresh tmpfs HOME and /tmp. Network stays available for upstream
+    APIs. Set UPDATE_SANDBOX=0 to opt out locally.
     """
     if sys.platform != "linux" or os.environ.get("UPDATE_SANDBOX") == "0":
         return cmd
@@ -62,9 +57,8 @@ def sandbox_wrap(cmd: list[str], name: str) -> list[str]:
         )
         return cmd
     pkg_dir = str(Path.cwd() / "packages" / name)
-    # A dedicated HOME rather than a tmpfs over the real one: the latter
-    # would hide a nix profile (~/.nix-profile/bin) that may hold the
-    # tools on PATH. Order matters: later binds override the read-only root.
+    # Fresh HOME instead of a tmpfs over the real one, which would hide
+    # ~/.nix-profile/bin. Later binds override the read-only root.
     return [
         bwrap,
         *("--ro-bind", "/", "/"),

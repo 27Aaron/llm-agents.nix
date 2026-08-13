@@ -56,9 +56,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
-    # The default token only needs read access: updater code uses it for
-    # GitHub API rate limits. Pushing and PR creation use the App token,
-    # which is minted only after the untrusted updater step has finished.
+    # Read access only. Pushing and PR creation use the App token, which
+    # is minted after the untrusted updater step has finished.
     permissions:
       contents: read
     steps:
@@ -67,8 +66,7 @@ jobs:
         with:
           # Full history needed so we can rebase existing update/* branches onto main.
           fetch-depth: 0
-          # No credentials in .git/config: the updater step must not be
-          # able to push. The push step authenticates explicitly.
+          # No credentials in .git/config: the updater must not be able to push.
           persist-credentials: false
       - name: Setup Nix
         uses: cachix/install-nix-action@v31
@@ -81,14 +79,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Stash CI scripts
-        # Copy the CI scripts out of the work tree BEFORE the updater runs,
-        # so a malicious update.py cannot rewrite the script that later
-        # executes with the App token.
+        # Copy the CI scripts out before the updater runs, so a malicious
+        # update.py cannot rewrite the script that later holds the App token.
         run: cp -r .github/ci "$RUNNER_TEMP/ci"
       - name: Prepare update branch
-        # Reuse the existing update/* branch (if any) so manual fixups on the open
-        # PR carry into the work tree. Rebase onto main; the updater edits on top,
-        # and create_pr.py copies the package's files into a clean clone to publish.
+        # Reuse the existing update/* branch (if any) so manual fixups on
+        # the open PR carry into the work tree. Rebase it onto main.
         env:
           TYPE: ${{ matrix.type }}
           NAME: ${{ matrix.name }}
@@ -113,8 +109,7 @@ jobs:
       - name: Perform update
         id: update
         env:
-          # Read-only token for API rate limits; the App token does not
-          # exist yet while untrusted updater code runs.
+          # Read-only token for API rate limits. No App token exists yet.
           GITHUB_TOKEN: ${{ github.token }}
           TYPE: ${{ matrix.type }}
           NAME: ${{ matrix.name }}
@@ -145,7 +140,7 @@ jobs:
           # Via env, not inline interpolation: updater output must never
           # reach a shell unquoted.
           NEW_VERSION: ${{ steps.update.outputs.new_version }}
-        # create_pr.py publishes from a fresh clone; it never pushes from
+        # create_pr.py publishes from a fresh clone. It never pushes from
         # this checkout, which the updater could have tampered with.
         run: |
           "$RUNNER_TEMP/ci/create_pr.py" "$TYPE" "$NAME" "$CURRENT_VERSION" "$NEW_VERSION"
