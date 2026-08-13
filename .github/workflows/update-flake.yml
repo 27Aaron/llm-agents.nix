@@ -113,9 +113,8 @@ jobs:
       - name: Perform update
         id: update
         env:
-          # Read-only token, for API rate limits only. The App token does
-          # not exist yet while updater code (nix-update, per-package
-          # update.py) is running.
+          # Read-only token for API rate limits; the App token does not
+          # exist yet while untrusted updater code runs.
           GITHUB_TOKEN: ${{ github.token }}
           TYPE: ${{ matrix.type }}
           NAME: ${{ matrix.name }}
@@ -143,12 +142,11 @@ jobs:
           TYPE: ${{ matrix.type }}
           NAME: ${{ matrix.name }}
           CURRENT_VERSION: ${{ matrix.current_version }}
-          # Via env, not inline interpolation: the version string comes from
-          # updater output and must never reach a shell unquoted.
+          # Via env, not inline interpolation: updater output must never
+          # reach a shell unquoted.
           NEW_VERSION: ${{ steps.update.outputs.new_version }}
-        # The script never commits or pushes from this checkout — the
-        # updater had write access to it, .git included. It publishes
-        # from a fresh clone it creates itself.
+        # create_pr.py publishes from a fresh clone; it never pushes from
+        # this checkout, which the updater could have tampered with.
         run: |
           "$RUNNER_TEMP/ci/create_pr.py" "$TYPE" "$NAME" "$CURRENT_VERSION" "$NEW_VERSION"
   update-readme:

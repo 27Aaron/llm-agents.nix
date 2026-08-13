@@ -127,32 +127,16 @@ def allowed_roots(update_type: UpdateType, name: str) -> tuple[str, ...]:
 
 
 def changed_paths(repo: Path) -> list[str]:
-    """List every path that differs from origin/main.
+    """List every work-tree path that differs from origin/main.
 
-    Covers staged, unstaged, untracked, and already-committed-on-branch
-    changes — a malicious updater could hide changes behind its own commit.
+    Only the work tree matters: publishing copies files from it, so the
+    index and branch commits are irrelevant. Tracked changes (including
+    ones a malicious updater committed) show up in the diff against
+    origin/main; new files via ls-files.
     """
-    paths: set[str] = set()
-
-    out = git_ro(repo, "status", "--porcelain=v1", "-z")
-    tokens = out.split("\0")
-    i = 0
-    while i < len(tokens):
-        entry = tokens[i]
-        i += 1
-        if not entry:
-            continue
-        status, path = entry[:2], entry[3:]
-        paths.add(path)
-        # renames/copies carry the source path in the next token
-        if "R" in status or "C" in status:
-            paths.add(tokens[i])
-            i += 1
-
-    out = git_ro(repo, "diff", "--name-only", "-z", "origin/main")
-    paths.update(p for p in out.split("\0") if p)
-
-    return sorted(paths)
+    tracked = git_ro(repo, "diff", "--name-only", "-z", "origin/main")
+    untracked = git_ro(repo, "ls-files", "--others", "--exclude-standard", "-z")
+    return sorted({p for p in (tracked + untracked).split("\0") if p})
 
 
 def check_confinement(repo: Path, allowed: tuple[str, ...], name: str) -> None:
@@ -205,44 +189,21 @@ def clone_and_publish(config: PrConfig, allowed: tuple[str, ...]) -> Path:
     repo_slug = os.environ["GITHUB_REPOSITORY"]
     url = f"https://x-access-token:{token}@github.com/{repo_slug}.git"
 
+    def git(*args: str, check: bool = True) -> int:
+        return run(["git", "-C", str(clean), *args], check=check).returncode
+
     run(["git", "clone", "--quiet", "--depth=1", "--branch", "main", url, str(clean)])
-    run(["git", "-C", str(clean), "config", "user.name", BOT_NAME])
-    run(["git", "-C", str(clean), "config", "user.email", BOT_EMAIL])
-    run(["git", "-C", str(clean), "checkout", "-q", "-B", config.branch])
+    git("config", "user.name", BOT_NAME)
+    git("config", "user.email", BOT_EMAIL)
+    git("checkout", "-q", "-B", config.branch)
 
     for rel in allowed:
         sync_path(dirty / rel, clean / rel)
 
-    run(["git", "-C", str(clean), "add", "--all", "--", *allowed])
-    if (
-        run(
-            ["git", "-C", str(clean), "diff", "--quiet", "--cached"], check=False
-        ).returncode
-        != 0
-    ):
-        run(
-            [
-                "git",
-                "-C",
-                str(clean),
-                "commit",
-                "-q",
-                "-m",
-                config.commit_message,
-                "--signoff",
-            ]
-        )
-    run(
-        [
-            "git",
-            "-C",
-            str(clean),
-            "push",
-            "--force",
-            "origin",
-            f"HEAD:{config.branch}",
-        ]
-    )
+    git("add", "--all", "--", *allowed)
+    if git("diff", "--quiet", "--cached", check=False) != 0:
+        git("commit", "-q", "-m", config.commit_message, "--signoff")
+    git("push", "--force", "origin", f"HEAD:{config.branch}")
     return clean
 
 

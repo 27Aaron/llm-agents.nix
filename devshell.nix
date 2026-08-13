@@ -6,8 +6,6 @@ pkgs.mkShellNoCC {
 
     # Tools needed for update scripts
     pkgs.bash
-    # Sandbox for updater code (.github/ci/update.py); Linux-only.
-    (pkgs.lib.optional pkgs.stdenv.isLinux pkgs.bubblewrap)
     pkgs.coreutils
     pkgs.curl
     pkgs.gh
@@ -20,7 +18,9 @@ pkgs.mkShellNoCC {
 
     # Formatter
     perSystem.self.formatter
-  ];
+  ]
+  # Sandbox for updater code (.github/ci/update.py)
+  ++ pkgs.lib.optional pkgs.stdenv.isLinux pkgs.bubblewrap;
 
   shellHook = ''
     export PRJ_ROOT=$PWD
