@@ -1,6 +1,7 @@
 {
   buildNpmPackage,
   fetchurl,
+  flake,
   git,
   jq,
   lib,
@@ -108,7 +109,7 @@ buildNpmPackage {
       binaryBytecode
       binaryNativeCode
     ];
-    maintainers = with maintainers; [ ];
+    maintainers = with flake.lib.maintainers; [ jvmncs ];
     mainProgram = "bb-app";
     platforms = [
       "x86_64-linux"

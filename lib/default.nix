@@ -204,6 +204,11 @@ inputs."nixpkgs".lib.extend (
         githubId = 53418317;
         name = "Shiki";
       };
+      jvmncs = {
+        github = "jvmncs";
+        githubId = 7891333;
+        name = "Jason Mancuso";
+      };
     };
   }
 )
