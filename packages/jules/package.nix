@@ -17,9 +17,7 @@ let
       aarch64-linux = "linux_arm64";
       aarch64-darwin = "darwin_arm64";
     };
-    url =
-      { version, platform }:
-      "https://storage.googleapis.com/jules-cli/v${version}/jules_external_v${version}_${platform}.tar.gz";
+    urlTemplate = "https://storage.googleapis.com/jules-cli/v{version}/jules_external_v{version}_{platform}.tar.gz";
   };
 in
 stdenv.mkDerivation {
@@ -46,19 +44,15 @@ stdenv.mkDerivation {
   versionCheckProgramArg = [ "version" ];
 
   passthru.category = "AI Coding Agents";
-  passthru.updater = mkUpdater {
-    kind = "platform";
-    versionSource = {
-      type = "npm";
-      package = "@google/jules";
-    };
-    urlTemplate = "https://storage.googleapis.com/jules-cli/v{version}/jules_external_v{version}_{platform}.tar.gz";
-    platforms = {
-      x86_64-linux = "linux_amd64";
-      aarch64-linux = "linux_arm64";
-      aarch64-darwin = "darwin_arm64";
-    };
-  };
+  passthru.updater = mkUpdater (
+    source.updater
+    // {
+      versionSource = {
+        type = "npm";
+        package = "@google/jules";
+      };
+    }
+  );
 
   meta = with lib; {
     description = "Jules, the asynchronous coding agent from Google, in the terminal";
