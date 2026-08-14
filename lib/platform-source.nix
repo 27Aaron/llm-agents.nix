@@ -12,12 +12,9 @@
   hashesFile,
   # Maps nix system -> platform token substituted into the URL.
   platforms,
-  # Canonical URL with {version}/{platform} placeholders. Shared verbatim with
-  # the updater. Prefer this over `url`.
-  urlTemplate ? null,
-  # Legacy: { version, platform }: URL. Kept for callers not yet on urlTemplate;
-  # such callers get `updater = null` (no single-source-of-truth guarantee).
-  url ? null,
+  # Canonical URL with {version}/{platform} placeholders, shared verbatim with
+  # the updater fragment below.
+  urlTemplate,
 }:
 
 let
@@ -25,30 +22,18 @@ let
   inherit (versionData) version;
   system = stdenv.hostPlatform.system;
   token = platforms.${system} or (throw "Unsupported system: ${system}");
-  artifactUrl =
-    if urlTemplate != null then
-      builtins.replaceStrings [ "{version}" "{platform}" ] [ version token ] urlTemplate
-    else
-      url {
-        inherit version;
-        platform = token;
-      };
 in
 {
   inherit version;
   platforms = builtins.attrNames platforms;
   src = fetchurl {
-    url = artifactUrl;
+    url = builtins.replaceStrings [ "{version}" "{platform}" ] [ version token ] urlTemplate;
     hash = versionData.hashes.${system};
   };
   # Ready-to-merge `passthru.updater` fragment (add a `versionSource`). Derived
-  # from the same urlTemplate + platform map as `src`. Null under legacy `url`.
-  updater =
-    if urlTemplate != null then
-      {
-        kind = "platform";
-        inherit urlTemplate platforms;
-      }
-    else
-      null;
+  # from the same urlTemplate + platform map as `src`.
+  updater = {
+    kind = "platform";
+    inherit urlTemplate platforms;
+  };
 }

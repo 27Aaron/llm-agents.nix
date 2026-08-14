@@ -15,9 +15,7 @@ let
       aarch64-linux = "linux-arm64";
       aarch64-darwin = "darwin-arm64";
     };
-    url =
-      { version, platform }:
-      "https://github.com/alibaba/open-code-review/releases/download/v${version}/opencodereview-${platform}";
+    urlTemplate = "https://github.com/alibaba/open-code-review/releases/download/v{version}/opencodereview-{platform}";
   };
   inherit (source) version;
 in
@@ -43,20 +41,16 @@ stdenv.mkDerivation {
   versionCheckProgramArg = [ "version" ];
 
   passthru.category = "Code Review";
-  passthru.updater = mkUpdater {
-    kind = "platform";
-    versionSource = {
-      type = "github";
-      owner = "alibaba";
-      repo = "open-code-review";
-    };
-    urlTemplate = "https://github.com/alibaba/open-code-review/releases/download/v{version}/opencodereview-{platform}";
-    platforms = {
-      x86_64-linux = "linux-amd64";
-      aarch64-linux = "linux-arm64";
-      aarch64-darwin = "darwin-arm64";
-    };
-  };
+  passthru.updater = mkUpdater (
+    source.updater
+    // {
+      versionSource = {
+        type = "github";
+        owner = "alibaba";
+        repo = "open-code-review";
+      };
+    }
+  );
 
   meta = with lib; {
     description = "AI-powered code review CLI";

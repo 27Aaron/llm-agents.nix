@@ -21,9 +21,7 @@ let
       aarch64-linux = "linux/arm64";
       aarch64-darwin = "darwin/arm64";
     };
-    url =
-      { version, platform }:
-      "https://downloads.cursor.com/lab/${version}/${platform}/agent-cli-package.tar.gz";
+    urlTemplate = "https://downloads.cursor.com/lab/{version}/{platform}/agent-cli-package.tar.gz";
   };
 in
 stdenv.mkDerivation rec {
@@ -78,20 +76,16 @@ stdenv.mkDerivation rec {
   '';
 
   passthru.category = "AI Coding Agents";
-  passthru.updater = mkUpdater {
-    kind = "platform";
-    versionSource = {
-      type = "text";
-      url = "https://cursor.com/install";
-      regex = "downloads\\.cursor\\.com/lab/([0-9]{4}\\.[0-9]{2}\\.[0-9]{2}-[0-9a-f-]+)/";
-    };
-    urlTemplate = "https://downloads.cursor.com/lab/{version}/{platform}/agent-cli-package.tar.gz";
-    platforms = {
-      x86_64-linux = "linux/x64";
-      aarch64-linux = "linux/arm64";
-      aarch64-darwin = "darwin/arm64";
-    };
-  };
+  passthru.updater = mkUpdater (
+    source.updater
+    // {
+      versionSource = {
+        type = "text";
+        url = "https://cursor.com/install";
+        regex = "downloads\\.cursor\\.com/lab/([0-9]{4}\\.[0-9]{2}\\.[0-9]{2}-[0-9a-f-]+)/";
+      };
+    }
+  );
 
   meta = with lib; {
     description = "Cursor Agent - CLI tool for Cursor AI code editor";

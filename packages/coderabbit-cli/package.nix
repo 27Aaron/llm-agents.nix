@@ -19,9 +19,7 @@ let
       aarch64-linux = "linux-arm64";
       aarch64-darwin = "darwin-arm64";
     };
-    url =
-      { version, platform }:
-      "https://cli.coderabbit.ai/releases/${version}/coderabbit-${platform}.zip";
+    urlTemplate = "https://cli.coderabbit.ai/releases/{version}/coderabbit-{platform}.zip";
   };
 in
 stdenv.mkDerivation {
@@ -55,19 +53,15 @@ stdenv.mkDerivation {
   versionCheckProgramArg = [ "--version" ];
 
   passthru.category = "Code Review";
-  passthru.updater = mkUpdater {
-    kind = "platform";
-    versionSource = {
-      type = "text";
-      url = "https://cli.coderabbit.ai/releases/latest/VERSION";
-    };
-    urlTemplate = "https://cli.coderabbit.ai/releases/{version}/coderabbit-{platform}.zip";
-    platforms = {
-      x86_64-linux = "linux-x64";
-      aarch64-linux = "linux-arm64";
-      aarch64-darwin = "darwin-arm64";
-    };
-  };
+  passthru.updater = mkUpdater (
+    source.updater
+    // {
+      versionSource = {
+        type = "text";
+        url = "https://cli.coderabbit.ai/releases/latest/VERSION";
+      };
+    }
+  );
 
   meta = with lib; {
     description = "AI-powered code review CLI tool";
