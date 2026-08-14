@@ -100,8 +100,39 @@
             // lib.genAttrs packageNames (name: self.callPackage (./packages + "/${name}/package.nix") { })
           );
 
+          # Generate a standard passthru.updateScript from a package's
+          # declarative passthru.updater config (see lib/mk-update-script.nix).
+          mkUpdateScript = import ./lib/mk-update-script.nix {
+            inherit (pkgs)
+              lib
+              writeShellApplication
+              nix
+              git
+              cacert
+              bun
+              nodejs
+              ;
+            python3 = pkgs.python3;
+          };
+
+          # Attach passthru.updateScript to any package carrying passthru.updater,
+          # so one `nix run .#<pkg>.updateScript` drives every declarative updater.
+          withUpdateScript =
+            name: pkg:
+            if pkg ? updater then
+              pkg.overrideAttrs (old: {
+                passthru = (old.passthru or { }) // {
+                  updateScript = mkUpdateScript {
+                    inherit name;
+                    config = pkg.updater;
+                  };
+                };
+              })
+            else
+              pkg;
+
           # Only the packages, without the scope plumbing and helpers.
-          packages = lib.genAttrs packageNames (name: scope.${name});
+          packages = lib.mapAttrs withUpdateScript (lib.genAttrs packageNames (name: scope.${name}));
         in
         packages;
 
