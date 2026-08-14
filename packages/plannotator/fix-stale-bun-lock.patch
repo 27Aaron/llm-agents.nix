@@ -1,13 +1,13 @@
 diff --git a/bun.lock b/bun.lock
-index 87f8aa1..bcf6085 100644
+index 6428a4b..3613431 100644
 --- a/bun.lock
 +++ b/bun.lock
 @@ -62,7 +62,7 @@
      },
      "apps/opencode-plugin": {
        "name": "@plannotator/opencode",
--      "version": "0.26.8",
-+      "version": "0.27.2",
+-      "version": "0.27.2",
++      "version": "0.27.3",
        "devDependencies": {
          "@opencode-ai/plugin": "0.0.0-next-16775",
          "@plannotator/server": "workspace:*",
@@ -15,8 +15,8 @@ index 87f8aa1..bcf6085 100644
      },
      "apps/pi-extension": {
        "name": "@plannotator/pi-extension",
--      "version": "0.26.8",
-+      "version": "0.27.2",
+-      "version": "0.27.2",
++      "version": "0.27.3",
        "dependencies": {
          "@joplin/turndown-plugin-gfm": "^1.0.64",
          "@pierre/diffs": "1.3.2",
@@ -24,12 +24,12 @@ index 87f8aa1..bcf6085 100644
      },
      "packages/server": {
        "name": "@plannotator/server",
--      "version": "0.26.8",
-+      "version": "0.27.2",
+-      "version": "0.27.2",
++      "version": "0.27.3",
        "dependencies": {
          "@pierre/diffs": "1.3.2",
          "@plannotator/ai": "workspace:*",
-@@ -2678,6 +2678,8 @@
+@@ -2679,6 +2679,8 @@
  
      "@astrojs/internal-helpers/shiki/@shikijs/types": ["@shikijs/types@4.4.2", "", { "dependencies": { "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.5" } }, "sha512-PFYitV4vpDr/iPCIhnHp+Q4ftic5N5VeNJ3KQ1O8gn3h2ar8qgwMAXF7tq4m1CWaMS60fV4VqF6vfnWH4F7vqQ=="],
  
@@ -38,7 +38,7 @@ index 87f8aa1..bcf6085 100644
      "@astrojs/react/vite/lightningcss": ["lightningcss@1.33.0", "", { "dependencies": { "detect-libc": "^2.0.3" }, "optionalDependencies": { "lightningcss-android-arm64": "1.33.0", "lightningcss-darwin-arm64": "1.33.0", "lightningcss-darwin-x64": "1.33.0", "lightningcss-freebsd-x64": "1.33.0", "lightningcss-linux-arm-gnueabihf": "1.33.0", "lightningcss-linux-arm64-gnu": "1.33.0", "lightningcss-linux-arm64-musl": "1.33.0", "lightningcss-linux-x64-gnu": "1.33.0", "lightningcss-linux-x64-musl": "1.33.0", "lightningcss-win32-arm64-msvc": "1.33.0", "lightningcss-win32-x64-msvc": "1.33.0" } }, "sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA=="],
  
      "@astrojs/react/vite/picomatch": ["picomatch@4.0.5", "", {}, "sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A=="],
-@@ -2932,6 +2934,58 @@
+@@ -2933,6 +2935,58 @@
  
      "wrangler/sharp/@img/sharp-win32-x64": ["@img/sharp-win32-x64@0.33.5", "", { "os": "win32", "cpu": "x64" }, "sha512-MpY/o8/8kj+EcnxwvrP4aTJSWw/aZ7JIGR4aBeZkZw5B7/Jn+tY9/VNwtcoGmdT7GfggGIU4kygOMSbYnOrAbg=="],
  
