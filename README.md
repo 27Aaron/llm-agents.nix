@@ -151,6 +151,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>freebuff</strong> - The world's strongest free coding agent</summary>
+
+- **Source**: binary
+- **License**: Apache-2.0
+- **Homepage**: https://freebuff.com
+- **Usage**: `nix run github:numtide/llm-agents.nix#freebuff -- --help`
+- **Nix**: [packages/freebuff/package.nix](packages/freebuff/package.nix)
+
+</details>
+<details>
 <summary><strong>gemini-cli</strong> - AI agent that brings the power of Gemini directly into your terminal</summary>
 
 - **Source**: source
