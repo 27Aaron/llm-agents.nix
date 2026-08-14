@@ -1,11 +1,13 @@
 # Select the prebuilt release artifact for the host platform, using the
 # per-platform hashes stored in a package's hashes.json.
 #
+# A thin per-platform layer over `fetchurlTemplate`: it picks the host system's
+# token + hash and interpolates {version}/{platform} into the shared urlTemplate.
 # The URL scheme and platform map are the SAME data the declarative updater
-# needs (see scripts/updater/run.py, kind = "platform"). Declare them once here
-# via `urlTemplate` + `platforms`; this returns both the `src` for the build and
-# an `updater` fragment for `passthru.updater`, so the two can never diverge.
-{ stdenv, fetchurl }:
+# needs (see scripts/updater/run.py, kind = "platform"), so this returns both
+# the `src` for the build and an `updater` fragment — declared once, never
+# divergent.
+{ stdenv, fetchurlTemplate }:
 
 {
   # Path to the package's hashes.json ({ version, hashes.<system> }).
@@ -26,8 +28,12 @@ in
 {
   inherit version;
   platforms = builtins.attrNames platforms;
-  src = fetchurl {
-    url = builtins.replaceStrings [ "{version}" "{platform}" ] [ version token ] urlTemplate;
+  src = fetchurlTemplate {
+    inherit urlTemplate;
+    vars = {
+      inherit version;
+      platform = token;
+    };
     hash = versionData.hashes.${system};
   };
   # Ready-to-merge `passthru.updater` fragment (add a `versionSource`). Derived

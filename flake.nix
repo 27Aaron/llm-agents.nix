@@ -69,12 +69,28 @@
         let
           system = pkgs.stdenv.hostPlatform.system;
 
+          # Generic {name}-template interpolation (Nix mirror of str.format) and
+          # a templated fetchurl built on it — the single templated-URL primitive
+          # shared between a package's build and its declarative updater.
+          interpolate = import ./lib/interpolate.nix;
+          fetchurlTemplate = import ./lib/fetchurl-template.nix {
+            inherit (pkgs) fetchurl;
+            inherit interpolate;
+          };
+
           scope = lib.makeScope pkgs.newScope (
             self:
             {
-              inherit flake inputs system;
+              inherit
+                flake
+                inputs
+                system
+                interpolate
+                fetchurlTemplate
+                ;
               platformSource = import ./lib/platform-source.nix {
-                inherit (pkgs) stdenv fetchurl;
+                inherit (pkgs) stdenv;
+                inherit fetchurlTemplate;
               };
               # Validate a declarative passthru.updater config (see
               # scripts/updater/run.py); packages opt out of update.py with it.
