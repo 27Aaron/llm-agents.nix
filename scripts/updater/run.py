@@ -10,14 +10,14 @@ its update recipe as data on the derivation::
       depHashKey = "vendorHash";
     };
 
-``mkUpdateScript`` serializes that attrset to JSON (Nix does the eval) and calls
-this runner. The runner turns the purl back into the flow's arguments and
-delegates to the existing, tested flow functions — so declarative packages and
-legacy ``update.py`` scripts share one code path.
+``mkUpdater`` validates that attrset; CI serializes it to JSON (Nix does the
+eval) and calls this runner, which turns the config back into the flow's
+arguments and delegates to the existing, tested flow functions — so declarative
+packages and legacy ``update.py`` scripts share one code path.
 
-Only the cleanly-derivable kinds live here (``github-source``, ``npm``,
-``bun-github``): their version and source URL follow from the purl alone.
-Packages with bespoke version discovery keep an imperative ``update.py``.
+Supported kinds: ``github-source``, ``npm``, ``bun-github`` (purl-derived);
+``platform`` and ``manifest`` (prebuilt binaries, with an explicit
+``versionSource``). Packages with genuinely bespoke logic keep an ``update.py``.
 """
 
 from __future__ import annotations
@@ -28,8 +28,19 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from .flows import update_bun_github, update_github_source, update_npm_package
+from .flows import (
+    update_bun_github,
+    update_github_source,
+    update_manifest_binaries,
+    update_npm_package,
+    update_platform_binaries,
+)
 from .purl import Purl
+from .version import (
+    fetch_github_latest_release,
+    fetch_npm_version,
+    fetch_version_from_text,
+)
 
 # The flow entry points, injectable so run() is testable without network/Nix.
 FlowMap = dict[str, Callable[..., None]]
@@ -38,6 +49,8 @@ _DEFAULT_FLOWS: FlowMap = {
     "github-source": update_github_source,
     "npm": update_npm_package,
     "bun-github": update_bun_github,
+    "platform": update_platform_binaries,
+    "manifest": update_manifest_binaries,
 }
 
 
@@ -49,13 +62,38 @@ def _owner(purl: Purl) -> str:
     return purl.namespace
 
 
+def _version_getter(source: dict[str, Any]) -> Callable[[], str]:
+    """Build the ``fetch_latest`` callable for a platform kind's versionSource.
+
+    ``github`` -> latest release; ``npm`` -> dist-tag version; ``text`` ->
+    regex match over a fetched page, or the whole stripped body if no regex.
+    """
+    from .http import fetch_text  # noqa: PLC0415 -- keep http import lazy
+
+    source_type = source["type"]
+    if source_type == "github":
+        return lambda: fetch_github_latest_release(source["owner"], source["repo"])
+    if source_type == "npm":
+        package = source["package"]
+        tag = source.get("tag", "latest")
+        return lambda: fetch_npm_version(package, tag=tag)
+    if source_type == "text":
+        url = source["url"]
+        regex = source.get("regex")
+        if regex:
+            return lambda: fetch_version_from_text(url, regex)
+        return lambda: fetch_text(url).strip()
+    msg = f"unknown versionSource type {source_type!r}"
+    raise ValueError(msg)
+
+
 def run(pkg_dir: Path, config: dict[str, Any], *, flows: FlowMap | None = None) -> None:
     """Execute one declarative updater config against ``pkg_dir``."""
     flow = flows if flows is not None else _DEFAULT_FLOWS
     kind = config["kind"]
-    purl = Purl.parse(config["purl"])
 
     if kind == "github-source":
+        purl = Purl.parse(config["purl"])
         flow["github-source"](
             pkg_dir,
             _owner(purl),
@@ -64,6 +102,7 @@ def run(pkg_dir: Path, config: dict[str, Any], *, flows: FlowMap | None = None) 
             config["depHashKey"],
         )
     elif kind == "bun-github":
+        purl = Purl.parse(config["purl"])
         flow["bun-github"](
             pkg_dir,
             _owner(purl),
@@ -71,6 +110,7 @@ def run(pkg_dir: Path, config: dict[str, Any], *, flows: FlowMap | None = None) 
             ref_prefix=config.get("refPrefix", "v"),
         )
     elif kind == "npm":
+        purl = Purl.parse(config["purl"])
         package = f"{purl.namespace}/{purl.name}" if purl.namespace else purl.name
         flow["npm"](
             pkg_dir,
@@ -81,6 +121,23 @@ def run(pkg_dir: Path, config: dict[str, Any], *, flows: FlowMap | None = None) 
             strip_dev_dependencies=config.get("stripDevDependencies", False),
             supplement_optional_deps=config.get("supplementOptionalDeps", False),
             lockfile_env=config.get("lockfileEnv"),
+        )
+    elif kind == "platform":
+        flow["platform"](
+            pkg_dir,
+            fetch_latest=_version_getter(config["versionSource"]),
+            url_template=config["urlTemplate"],
+            platforms=config["platforms"],
+        )
+    elif kind == "manifest":
+        platform_map = {
+            (entry["os"], entry["arch"]): entry["platform"]
+            for entry in config["platformMap"]
+        }
+        flow["manifest"](
+            pkg_dir,
+            manifest_url=config["manifestUrl"],
+            platform_map=platform_map,
         )
     else:
         msg = f"unknown updater kind {kind!r}"

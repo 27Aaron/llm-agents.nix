@@ -58,6 +58,8 @@ UPDATER_SHELL_TOOLS = {
     "github-source": ["nixpkgs#python3"],
     "npm": ["nixpkgs#python3", "nixpkgs#nodejs"],
     "bun-github": ["nixpkgs#python3", "nixpkgs#bun", "nixpkgs#git"],
+    "platform": ["nixpkgs#python3"],
+    "manifest": ["nixpkgs#python3"],
 }
 
 

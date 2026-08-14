@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from updater.run import run
+from updater.run import _version_getter, run
 
 PKG = Path("packages/example")
 
@@ -29,7 +29,8 @@ class Recorder:
 
 
 def recorders() -> dict[str, Recorder]:
-    return {k: Recorder() for k in ("github-source", "npm", "bun-github")}
+    kinds = ("github-source", "npm", "bun-github", "platform", "manifest")
+    return {k: Recorder() for k in kinds}
 
 
 class TestRun(unittest.TestCase):
@@ -98,6 +99,63 @@ class TestRun(unittest.TestCase):
         )
         assert flows["npm"].args is not None
         self.assertEqual(flows["npm"].args[1], "skills")
+
+    def test_platform_github_source(self) -> None:
+        flows = recorders()
+        run(
+            PKG,
+            {
+                "kind": "platform",
+                "versionSource": {
+                    "type": "github",
+                    "owner": "anomalyco",
+                    "repo": "opencode",
+                },
+                "urlTemplate": "https://x/{version}/{platform}",
+                "platforms": {"x86_64-linux": "linux-x64.tar.gz"},
+            },
+            flows=flows,  # type: ignore[arg-type]
+        )
+        rec = flows["platform"]
+        assert rec.kwargs is not None
+        self.assertEqual(rec.kwargs["url_template"], "https://x/{version}/{platform}")
+        self.assertEqual(rec.kwargs["platforms"], {"x86_64-linux": "linux-x64.tar.gz"})
+        self.assertTrue(callable(rec.kwargs["fetch_latest"]))
+
+    def test_platform_version_sources(self) -> None:
+
+        # Each type builds a callable without raising.
+        for source in (
+            {"type": "github", "owner": "o", "repo": "r"},
+            {"type": "npm", "package": "@x/y", "tag": "next"},
+            {"type": "text", "url": "https://x/v", "regex": r"v(\d+)"},
+            {"type": "text", "url": "https://x/v"},  # no regex -> plain body
+        ):
+            self.assertTrue(callable(_version_getter(source)))
+        with self.assertRaises(ValueError):
+            _version_getter({"type": "bogus"})
+
+    def test_manifest(self) -> None:
+        flows = recorders()
+        run(
+            PKG,
+            {
+                "kind": "manifest",
+                "manifestUrl": "https://x/manifest.json",
+                "platformMap": [
+                    {"os": "linux", "arch": "amd64", "platform": "x86_64-linux"},
+                    {"os": "darwin", "arch": "arm64", "platform": "aarch64-darwin"},
+                ],
+            },
+            flows=flows,  # type: ignore[arg-type]
+        )
+        rec = flows["manifest"]
+        assert rec.kwargs is not None
+        self.assertEqual(rec.kwargs["manifest_url"], "https://x/manifest.json")
+        self.assertEqual(
+            rec.kwargs["platform_map"],
+            {("linux", "amd64"): "x86_64-linux", ("darwin", "arm64"): "aarch64-darwin"},
+        )
 
     def test_unknown_kind_raises(self) -> None:
         with self.assertRaises(ValueError):

@@ -29,6 +29,15 @@ let
       "flakeAttr"
     ];
     "bun-github" = [ "purl" ];
+    "platform" = [
+      "versionSource"
+      "urlTemplate"
+      "platforms"
+    ];
+    "manifest" = [
+      "manifestUrl"
+      "platformMap"
+    ];
   };
 in
 config:
