@@ -140,6 +140,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>dsh</strong> - Open-source agent harness developed by DeepSeek AI</summary>
+
+- **Source**: bytecode
+- **License**: MIT
+- **Homepage**: https://github.com/deepseek-ai/deepseek-harness
+- **Usage**: `nix run github:numtide/llm-agents.nix#dsh -- --help`
+- **Nix**: [packages/dsh/package.nix](packages/dsh/package.nix)
+
+</details>
+<details>
 <summary><strong>eca</strong> - Editor Code Assistant (ECA) - AI pair programming capabilities agnostic of editor</summary>
 
 - **Source**: binary
