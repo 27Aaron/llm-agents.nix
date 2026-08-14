@@ -29,7 +29,12 @@ def git_has_changes() -> bool:
     return run(["git", "diff", "--quiet", "origin/main"], check=False).returncode != 0
 
 
-def run_update_command(cmd: list[str], error_label: str) -> None:
+def run_update_command(
+    cmd: list[str],
+    error_label: str,
+    *,
+    env: dict[str, str] | None = None,
+) -> None:
     """Run an update command, streaming merged stdout+stderr, and exit on failure."""
     result = subprocess.run(
         cmd,
@@ -37,12 +42,63 @@ def run_update_command(cmd: list[str], error_label: str) -> None:
         stderr=subprocess.STDOUT,
         text=True,
         check=False,
+        env=env,
     )
     if result.stdout:
         sys.stdout.write(result.stdout)
     if result.returncode != 0:
         log.error("::error::%s", error_label)
         sys.exit(1)
+
+
+# Extra nixpkgs tools each declarative updater kind needs on PATH. The runner
+# itself is python3; the flows shell out to these. Mirrors the per-script nix
+# shebangs the legacy update.py scripts used.
+UPDATER_SHELL_TOOLS = {
+    "github-source": ["nixpkgs#python3"],
+    "npm": ["nixpkgs#python3", "nixpkgs#nodejs"],
+    "bun-github": ["nixpkgs#python3", "nixpkgs#bun", "nixpkgs#git"],
+}
+
+
+def load_updater_config(name: str) -> dict | None:
+    """Read a package's declarative passthru.updater config, or None."""
+    result = run(
+        ["nix", "eval", "--json", f".#packages.x86_64-linux.{name}.updater"],
+        check=False,
+        capture=True,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    return json.loads(result.stdout)
+
+
+def run_declarative_updater(name: str, config: dict) -> None:
+    """Run scripts/updater/run.py for a package's declarative config."""
+    kind = config["kind"]
+    tools = UPDATER_SHELL_TOOLS.get(kind)
+    if tools is None:
+        log.error("::error::Unknown updater kind %r for %s", kind, name)
+        sys.exit(1)
+    log.info("Running declarative updater (%s) for %s...", kind, name)
+    cmd = [
+        "nix",
+        "shell",
+        "--inputs-from",
+        ".#",
+        *tools,
+        "--command",
+        "python3",
+        "-m",
+        "updater.run",
+        "--pkg-dir",
+        f"packages/{name}",
+        "--config",
+        json.dumps(config),
+    ]
+    # PYTHONPATH so the `updater` package resolves for `python3 -m updater.run`.
+    env = {**os.environ, "PYTHONPATH": str(Path("scripts").resolve())}
+    run_update_command(cmd, f"Declarative updater failed for package {name}", env=env)
 
 
 def load_nix_update_args(name: str) -> list[str]:
@@ -63,12 +119,15 @@ def update_package(name: str) -> None:
     log.info("Updating package %s...", name)
 
     update_script = Path(f"packages/{name}/update.py")
+    updater_config = load_updater_config(name)
     if update_script.exists():
         log.info("Running update script for %s...", name)
         run_update_command(
             [str(update_script)],
             f"Update script failed for package {name}",
         )
+    elif updater_config is not None:
+        run_declarative_updater(name, updater_config)
     else:
         log.info("No update script found, trying nix-update...")
         run_update_command(

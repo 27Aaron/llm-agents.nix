@@ -6,13 +6,27 @@ import sys
 from typing import TYPE_CHECKING
 
 from updater.deps import update_dependency_hash
-from updater.hash import DUMMY_SHA256_HASH, calculate_url_hash
+from updater.fetch import PurlFetcher
+from updater.hash import DUMMY_SHA256_HASH
 from updater.hashes_file import load_hashes, save_hashes
 from updater.npm import extract_or_generate_lockfile
-from updater.version import fetch_npm_version, should_update
+from updater.purl import Purl
+from updater.version import should_update
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def _npm_purl(npm_package: str, *, fetchzip: bool) -> Purl:
+    """Build the ``pkg:npm`` purl for a (possibly scoped) package name."""
+    if npm_package.startswith("@"):
+        scope, _, name = npm_package.partition("/")
+        purl = Purl("npm", scope, name)
+    else:
+        purl = Purl("npm", None, npm_package)
+    # fetchzip packages hash the unpacked tarball; carry that on the purl so
+    # the handler's source_hash uses nix-prefetch-url --unpack.
+    return purl.with_qualifiers(x_unpack="true") if fetchzip else purl
 
 
 def update_npm_package(
@@ -38,24 +52,25 @@ def update_npm_package(
     hashes_file = pkg_dir / "hashes.json"
     data = load_hashes(hashes_file)
     current = data["version"]
-    latest = fetch_npm_version(npm_package)
 
-    print(f"Current: {current}, Latest: {latest}")
+    fetcher = PurlFetcher.default()
+    purl = _npm_purl(npm_package, fetchzip=fetchzip)
+    resolved = fetcher.resolve(purl)
 
-    if not should_update(current, latest):
+    print(f"Current: {current}, Latest: {resolved.version}")
+
+    if not should_update(current, resolved.version):
         print("Already up to date")
         return
 
-    tarball_name = npm_package.rsplit("/", 1)[-1]
-    tarball_url = (
-        f"https://registry.npmjs.org/{npm_package}/-/{tarball_name}-{latest}.tgz"
-    )
+    handler = fetcher.handler(purl)
+    location = handler.locations(purl, resolved)[0]
 
     print("Calculating source hash...")
-    source_hash = calculate_url_hash(tarball_url, unpack=fetchzip)
+    source_hash = handler.source_hash(location)
 
     if not extract_or_generate_lockfile(
-        tarball_url,
+        location.url,
         pkg_dir / "package-lock.json",
         env=lockfile_env,
         strip_dev_dependencies=strip_dev_dependencies,
@@ -69,7 +84,7 @@ def update_npm_package(
     # replaces it with the hash reported by the failed build.
     source_hash_key = "hash" if fetchzip else "sourceHash"
     data = {
-        "version": latest,
+        "version": resolved.version,
         source_hash_key: source_hash,
         "npmDepsHash": DUMMY_SHA256_HASH,
     }
@@ -78,4 +93,4 @@ def update_npm_package(
     print("Calculating npm dependencies hash...")
     update_dependency_hash(flake_attr, "npmDepsHash", hashes_file, data)
 
-    print(f"Updated to {latest}")
+    print(f"Updated to {resolved.version}")

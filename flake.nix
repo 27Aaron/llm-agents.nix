@@ -76,6 +76,9 @@
               platformSource = import ./lib/platform-source.nix {
                 inherit (pkgs) stdenv fetchurl;
               };
+              # Validate a declarative passthru.updater config (see
+              # scripts/updater/run.py); packages opt out of update.py with it.
+              mkUpdater = import ./lib/mk-updater.nix { inherit (pkgs) lib; };
               # `bun build --compile` copies the running bun binary into the
               # executable it produces, so bun ends up inside our outputs
               # rather than being a build tool we can leave to the consumer.
