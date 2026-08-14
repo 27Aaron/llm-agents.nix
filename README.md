@@ -29,6 +29,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>bb-app</strong> - Agentic IDE for orchestrating coding agents</summary>
+
+- **Source**: binary
+- **License**: MIT
+- **Homepage**: https://getbb.app
+- **Usage**: `nix run github:numtide/llm-agents.nix#bb-app -- --help`
+- **Nix**: [packages/bb-app/package.nix](packages/bb-app/package.nix)
+
+</details>
+<details>
 <summary><strong>claude-code</strong> - Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster</summary>
 
 - **Source**: binary
