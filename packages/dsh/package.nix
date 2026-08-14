@@ -11,14 +11,16 @@
 }:
 
 let
-  version = "0.1.0-rc.6";
+  versionData = lib.importJSON ./hashes.json;
+  version = versionData.version;
 
+  # The npm tarball ships no lockfile. Vendor one, kept in sync by update.py.
   srcWithLock = runCommand "dsh-source" { } ''
     mkdir -p $out
     tar -xzf ${
       fetchurl {
         url = "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-${version}.tgz";
-        hash = "sha512-brpZfED7ieRa2PQ5tUxMhHrM1pb2CmKFVM/f6yMULBDMicahk+Z2OsHgTwTDnoiZm23Ftu9rQz0NN4pflaoJcg==";
+        hash = versionData.sourceHash;
       }
     } -C $out --strip-components=1
     cp ${./package-lock.json} $out/package-lock.json
@@ -31,7 +33,7 @@ buildNpmPackage {
 
   nodejs = nodejs_22;
   npmDepsFetcherVersion = 2;
-  npmDepsHash = "sha256-63LcvleBc/WdvfDow+YMTljpmY2WgMLTo6SMIdOpKWA=";
+  npmDepsHash = versionData.npmDepsHash;
 
   # The npm package already contains the compiled CLI files.
   dontNpmBuild = true;
@@ -61,14 +63,14 @@ buildNpmPackage {
 
   passthru.category = "AI Coding Agents";
 
-  meta = with lib; {
+  meta = {
     description = "Open-source agent harness developed by DeepSeek AI";
     homepage = "https://github.com/deepseek-ai/deepseek-harness";
     changelog = "https://github.com/deepseek-ai/deepseek-harness/releases";
-    license = licenses.mit;
-    sourceProvenance = with sourceTypes; [ binaryBytecode ];
+    license = lib.licenses.mit;
+    sourceProvenance = with lib.sourceTypes; [ binaryBytecode ];
     maintainers = with flake.lib.maintainers; [ JachinShen ];
     mainProgram = "dsh";
-    platforms = platforms.unix;
+    platforms = lib.platforms.unix;
   };
 }
