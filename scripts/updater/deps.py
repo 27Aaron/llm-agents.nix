@@ -65,20 +65,6 @@ class DepHasher:
         raise ValueError(msg)
 
 
-def calculate_dependency_hash(
-    package_attr: str,
-    hash_key: str,
-    hashes_file: Path,
-    data: dict[str, Any],
-) -> str:
-    """Calculate a dependency hash and return it (hashes.json store).
-
-    Thin back-compat wrapper over :class:`DepHasher` + :class:`HashesJsonStore`.
-    """
-    store = HashesJsonStore(hashes_file, data=data)
-    return DepHasher(store, package_attr).hash(hash_key)
-
-
 def update_dependency_hash(
     package_attr: str,
     hash_key: str,

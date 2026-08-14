@@ -12,7 +12,7 @@ from .bun import (
 )
 
 # Dependency hash calculation
-from .deps import DepHasher, calculate_dependency_hash, update_dependency_hash
+from .deps import DepHasher, update_dependency_hash
 
 # Purl fetcher (source-identity layer)
 from .fetch import (
@@ -80,7 +80,6 @@ __all__ = [
     "Resolved",
     "StateStore",
     "VersionPolicy",
-    "calculate_dependency_hash",
     "calculate_platform_hashes",
     "calculate_url_hash",
     "clone_and_generate_bun_nix",
