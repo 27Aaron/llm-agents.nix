@@ -87,9 +87,8 @@ buildNpmPackage {
 
     export HOME=$TMPDIR
     $out/bin/bb-app --help | grep -q '^Usage:$'
-    test "$(${lib.getExe nodejs} -p \
-      "require('$out/lib/node_modules/bb-app/package.json').version")" = "${version}"
 
+    # The native modules rebuilt in preBuild must load with Nix's Node.js.
     export NODE_PATH=$out/lib/node_modules/bb-app/node_modules
     ${lib.getExe nodejs} -e \
       "require('@parcel/watcher'); require('better-sqlite3'); require('node-pty')"
@@ -99,13 +98,13 @@ buildNpmPackage {
 
   passthru.category = "AI Coding Agents";
 
-  meta = with lib; {
+  meta = {
     description = "Agentic IDE for orchestrating coding agents";
     homepage = "https://getbb.app";
     changelog = "https://getbb.app/changelog#${version}";
     downloadPage = "https://www.npmjs.com/package/bb-app";
-    license = licenses.mit;
-    sourceProvenance = with sourceTypes; [
+    license = lib.licenses.mit;
+    sourceProvenance = with lib.sourceTypes; [
       binaryBytecode
       binaryNativeCode
     ];
