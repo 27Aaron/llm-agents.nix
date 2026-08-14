@@ -19,15 +19,13 @@
 let
   # kind -> attributes the runner requires for that kind.
   requiredByKind = {
+    # flakeAttr is injected from the package name by mk-update-script.nix, so
+    # it is not a required (or expected) config field.
     "github-source" = [
       "purl"
-      "flakeAttr"
       "depHashKey"
     ];
-    "npm" = [
-      "purl"
-      "flakeAttr"
-    ];
+    "npm" = [ "purl" ];
     "bun-github" = [ "purl" ];
     "platform" = [
       "versionSource"

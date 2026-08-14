@@ -101,7 +101,6 @@ buildNpmPackage (finalAttrs: {
   passthru.updater = mkUpdater {
     kind = "github-source";
     purl = "pkg:github/abhigyanpatwari/GitNexus";
-    flakeAttr = ".#gitnexus";
     depHashKey = "npmDepsHash";
   };
 

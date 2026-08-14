@@ -158,7 +158,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/%40earendil-works/pi-coding-agent";
-    flakeAttr = ".#pi";
   };
 
   meta = {

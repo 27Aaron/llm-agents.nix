@@ -79,7 +79,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/paperclipai";
-    flakeAttr = ".#paperclip";
     fetchzip = true;
     supplementOptionalDeps = true;
   };

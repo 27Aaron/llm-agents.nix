@@ -56,7 +56,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/%40iflow-ai/iflow-cli";
-    flakeAttr = ".#iflow-cli";
     requireLockfile = false;
   };
 

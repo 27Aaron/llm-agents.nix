@@ -50,7 +50,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/openspecui";
-    flakeAttr = ".#openspecui";
     stripDevDependencies = true;
   };
 

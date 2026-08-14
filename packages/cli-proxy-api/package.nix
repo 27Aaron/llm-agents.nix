@@ -47,7 +47,6 @@ buildGoModule.override { go = go_1_26; } {
   passthru.updater = mkUpdater {
     kind = "github-source";
     purl = "pkg:github/router-for-me/CLIProxyAPI";
-    flakeAttr = ".#cli-proxy-api";
     depHashKey = "vendorHash";
   };
 

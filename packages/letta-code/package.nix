@@ -57,7 +57,6 @@ buildNpmPackage rec {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/%40letta-ai/letta-code";
-    flakeAttr = ".#letta-code";
     lockfileEnv = {
       NPM_CONFIG_LEGACY_PEER_DEPS = "true";
     };

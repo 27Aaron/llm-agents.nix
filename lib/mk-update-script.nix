@@ -28,7 +28,14 @@ let
     ];
   };
   extraTools = extraToolsByKind.${config.kind} or [ ];
-  configJson = builtins.toJSON config;
+  # The dependency-hash kinds build `.#<name>`; the attr is the package's own
+  # name, so inject it rather than restating it in every config.
+  needsFlakeAttr = builtins.elem config.kind [
+    "github-source"
+    "npm"
+  ];
+  resolvedConfig = if needsFlakeAttr then config // { flakeAttr = ".#${name}"; } else config;
+  configJson = builtins.toJSON resolvedConfig;
 in
 writeShellApplication {
   name = "update-${name}";

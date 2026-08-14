@@ -57,7 +57,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/%40github/copilot-language-server";
-    flakeAttr = ".#copilot-language-server";
     fetchzip = true;
   };
 

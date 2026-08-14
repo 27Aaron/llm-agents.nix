@@ -49,7 +49,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/%40zaly/cli";
-    flakeAttr = ".#zaly";
     lockfileEnv = {
       NPM_CONFIG_OMIT = "dev";
     };

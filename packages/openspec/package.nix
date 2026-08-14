@@ -46,7 +46,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/%40fission-ai/openspec";
-    flakeAttr = ".#openspec";
   };
 
   meta = {

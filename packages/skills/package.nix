@@ -48,7 +48,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/skills";
-    flakeAttr = ".#skills";
   };
 
   meta = with lib; {

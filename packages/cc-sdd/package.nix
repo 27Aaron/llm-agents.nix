@@ -64,7 +64,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "github-source";
     purl = "pkg:github/gotalab/cc-sdd";
-    flakeAttr = ".#cc-sdd";
     depHashKey = "npmDepsHash";
   };
 

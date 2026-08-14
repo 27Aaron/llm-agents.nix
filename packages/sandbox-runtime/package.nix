@@ -62,7 +62,6 @@ buildNpmPackage {
   passthru.updater = mkUpdater {
     kind = "npm";
     purl = "pkg:npm/%40anthropic-ai/sandbox-runtime";
-    flakeAttr = ".#sandbox-runtime";
     fetchzip = true;
   };
 

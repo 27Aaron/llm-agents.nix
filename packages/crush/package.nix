@@ -60,7 +60,6 @@ in
     updater = mkUpdater {
       kind = "github-source";
       purl = "pkg:github/charmbracelet/crush";
-      flakeAttr = ".#crush";
       depHashKey = "vendorHash";
     };
   };
