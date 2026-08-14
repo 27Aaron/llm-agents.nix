@@ -8,13 +8,13 @@
 
 buildGoModule rec {
   pname = "sidecar";
-  version = "0.99.0";
+  version = "0.99.1";
 
   src = fetchFromGitHub {
     owner = "marcus";
     repo = "sidecar";
     tag = "v${version}";
-    hash = "sha256-K5sExKjbdReKC1hn11FTWbv9Z8EAMtI4h//s93HXPzw=";
+    hash = "sha256-vSSBye0ya0C0gkdWNVsX60U41z7g8afm5vVFduYhrEQ=";
   };
 
   vendorHash = "sha256-TrUEkofD2a1An9OOBdLX3SH349BPzWqB10iPbs4Cou0=";
