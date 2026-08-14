@@ -11,7 +11,8 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from updater.run import _version_getter, run
+from updater import http
+from updater.run import _latest_git_tag, _version_getter, run
 
 PKG = Path("packages/example")
 
@@ -130,10 +131,23 @@ class TestRun(unittest.TestCase):
             {"type": "npm", "package": "@x/y", "tag": "next"},
             {"type": "text", "url": "https://x/v", "regex": r"v(\d+)"},
             {"type": "text", "url": "https://x/v"},  # no regex -> plain body
+            {"type": "git-tags", "url": "https://gitea/api/.../tags"},
         ):
             self.assertTrue(callable(_version_getter(source)))
         with self.assertRaises(ValueError):
             _version_getter({"type": "bogus"})
+
+    def test_git_tags_picks_highest_stripping_v(self) -> None:
+        # Patch fetch_json (the getter imports it lazily from updater.http).
+        def fake(_url: str) -> list[Any]:
+            return [{"name": "v1.2.0"}, {"name": "v1.10.0"}, {"name": "v1.9.0"}]
+
+        original = http.fetch_json
+        http.fetch_json = fake  # type: ignore[assignment]
+        try:
+            self.assertEqual(_latest_git_tag("https://x/tags"), "1.10.0")
+        finally:
+            http.fetch_json = original
 
     def test_manifest(self) -> None:
         flows = recorders()

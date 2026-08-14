@@ -265,11 +265,23 @@ PLATFORM_MAPS: dict[str, dict[str, str]] = {
 }
 
 
-def resolve_platform_map(purl: Purl) -> dict[str, str]:
-    """Resolve the ``x_platforms`` qualifier to a nix-platform -> token map.
+def _platform_vars(value: object) -> dict[str, str]:
+    """Normalize one platform-map entry to a var set.
 
-    The value is either a named map (``rustTargets``) shipped in
-    :data:`PLATFORM_MAPS`, or an inline JSON object.
+    A bare string token is the ``{platform}`` variable; an object is its own
+    set of interpolation variables (e.g. ``{"os": "linux", "cpu": "x86_64"}``).
+    """
+    if isinstance(value, dict):
+        return {str(k): str(v) for k, v in value.items()}
+    return {"platform": str(value)}
+
+
+def resolve_platform_map(purl: Purl) -> dict[str, dict[str, str]]:
+    """Resolve the ``x_platforms`` qualifier to nix-platform -> var set.
+
+    The value is a named map (``rustTargets``) from :data:`PLATFORM_MAPS`, or an
+    inline JSON object. Each entry maps to a var set: a string is shorthand for
+    ``{platform: <string>}``; an object supplies arbitrary vars for the URL.
     """
     spec = purl.q("x_platforms")
     if not spec:
@@ -279,9 +291,9 @@ def resolve_platform_map(purl: Purl) -> dict[str, str]:
     except (ValueError, TypeError):
         parsed = None
     if isinstance(parsed, dict):
-        return {str(k): str(v) for k, v in parsed.items()}
+        return {str(k): _platform_vars(v) for k, v in parsed.items()}
     if spec in PLATFORM_MAPS:
-        return dict(PLATFORM_MAPS[spec])
+        return {k: _platform_vars(v) for k, v in PLATFORM_MAPS[spec].items()}
     msg = f"unknown platform map {spec!r}"
     raise UnknownPlatformMapError(msg)
 
@@ -304,10 +316,8 @@ def templated_locations(
     if not platforms:
         return [Location("src", url_template.format(**fmt), unpack=unpack)]
     return [
-        Location(
-            nix_platform, url_template.format(platform=token, **fmt), unpack=unpack
-        )
-        for nix_platform, token in platforms.items()
+        Location(nix_platform, url_template.format(**fmt, **plat_vars), unpack=unpack)
+        for nix_platform, plat_vars in platforms.items()
     ]
 
 

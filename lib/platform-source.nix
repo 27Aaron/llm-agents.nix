@@ -12,9 +12,11 @@
 {
   # Path to the package's hashes.json ({ version, hashes.<system> }).
   hashesFile,
-  # Maps nix system -> platform token substituted into the URL.
+  # Maps nix system -> the URL variables for that platform. A string is
+  # shorthand for the single {platform} var; an attrset supplies arbitrary vars
+  # (e.g. { os = "linux"; cpu = "x86_64"; }) interpolated into urlTemplate.
   platforms,
-  # Canonical URL with {version}/{platform} placeholders, shared verbatim with
+  # Canonical URL with {version} + platform placeholders, shared verbatim with
   # the updater fragment below.
   urlTemplate,
 }:
@@ -23,7 +25,8 @@ let
   versionData = builtins.fromJSON (builtins.readFile hashesFile);
   inherit (versionData) version;
   system = stdenv.hostPlatform.system;
-  token = platforms.${system} or (throw "Unsupported system: ${system}");
+  entry = platforms.${system} or (throw "Unsupported system: ${system}");
+  platformVars = if builtins.isAttrs entry then entry else { platform = entry; };
 in
 {
   inherit version;
@@ -32,8 +35,8 @@ in
     inherit urlTemplate;
     vars = {
       inherit version;
-      platform = token;
-    };
+    }
+    // platformVars;
     hash = versionData.hashes.${system};
   };
   # Ready-to-merge `passthru.updater` fragment (add a `versionSource`). Derived

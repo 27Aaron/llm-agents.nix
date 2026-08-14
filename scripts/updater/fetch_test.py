@@ -115,14 +115,45 @@ class TestTagTemplates(unittest.TestCase):
 
 class TestPlatformMaps(unittest.TestCase):
     def test_named_map(self) -> None:
+        # A string token normalizes to the {platform} var.
         p = Purl.parse("pkg:generic/go?x_platforms=goDl")
         m = resolve_platform_map(p)
-        self.assertEqual(m["x86_64-linux"], "linux-amd64")
+        self.assertEqual(m["x86_64-linux"], {"platform": "linux-amd64"})
         self.assertEqual(len(m), 3)
 
     def test_inline_json_map(self) -> None:
         p = Purl.parse('pkg:generic/x?x_platforms={"x86_64-linux":"amd64"}')
-        self.assertEqual(resolve_platform_map(p), {"x86_64-linux": "amd64"})
+        self.assertEqual(
+            resolve_platform_map(p), {"x86_64-linux": {"platform": "amd64"}}
+        )
+
+    def test_multivar_map(self) -> None:
+        # An object entry supplies arbitrary vars (os/cpu) for the URL.
+        p = Purl.parse(
+            'pkg:generic/x?x_platforms={"x86_64-linux":{"os":"linux","cpu":"x86_64"}}'
+        )
+        self.assertEqual(
+            resolve_platform_map(p),
+            {"x86_64-linux": {"os": "linux", "cpu": "x86_64"}},
+        )
+
+    def test_multivar_fanout(self) -> None:
+        p = Purl.parse(
+            "pkg:generic/swamp"
+            '?x_platforms={"x86_64-linux":{"os":"linux","cpu":"x86_64"},'
+            '"aarch64-darwin":{"os":"darwin","cpu":"aarch64"}}'
+        )
+        r = Resolved(version="1.2.3", ref="1.2.3")
+        locs = templated_locations(
+            p, r, "https://h/{version}/swamp-{version}-{os}-{cpu}.tar.gz"
+        )
+        urls = {loc.component: loc.url for loc in locs}
+        self.assertEqual(
+            urls["x86_64-linux"], "https://h/1.2.3/swamp-1.2.3-linux-x86_64.tar.gz"
+        )
+        self.assertEqual(
+            urls["aarch64-darwin"], "https://h/1.2.3/swamp-1.2.3-darwin-aarch64.tar.gz"
+        )
 
     def test_no_map(self) -> None:
         self.assertEqual(resolve_platform_map(Purl.parse("pkg:generic/x")), {})

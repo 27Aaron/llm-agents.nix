@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Callable
+from functools import cmp_to_key
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,7 @@ from .flows import (
 )
 from .purl import Purl
 from .version import (
+    compare_versions,
     fetch_github_latest_release,
     fetch_npm_version,
     fetch_version_from_text,
@@ -62,11 +64,27 @@ def _owner(purl: Purl) -> str:
     return purl.namespace
 
 
+def _latest_git_tag(url: str) -> str:
+    """Highest version among a Gitea/Forgejo tags API list (v-prefix stripped)."""
+    from .http import fetch_json  # noqa: PLC0415 -- keep http import lazy
+
+    tags = fetch_json(url)
+    if not isinstance(tags, list):
+        msg = f"expected a list of tags from {url}"
+        raise TypeError(msg)
+    versions = [str(tag["name"]).removeprefix("v") for tag in tags]
+    if not versions:
+        msg = f"no tags found at {url}"
+        raise ValueError(msg)
+    return max(versions, key=cmp_to_key(compare_versions))
+
+
 def _version_getter(source: dict[str, Any]) -> Callable[[], str]:
     """Build the ``fetch_latest`` callable for a platform kind's versionSource.
 
     ``github`` -> latest release; ``npm`` -> dist-tag version; ``text`` ->
-    regex match over a fetched page, or the whole stripped body if no regex.
+    regex match over a fetched page (or whole stripped body); ``git-tags`` ->
+    highest version in a Gitea/Forgejo tags API list.
     """
     from .http import fetch_text  # noqa: PLC0415 -- keep http import lazy
 
@@ -83,6 +101,9 @@ def _version_getter(source: dict[str, Any]) -> Callable[[], str]:
         if regex:
             return lambda: fetch_version_from_text(url, regex)
         return lambda: fetch_text(url).strip()
+    if source_type == "git-tags":
+        url = source["url"]
+        return lambda: _latest_git_tag(url)
     msg = f"unknown versionSource type {source_type!r}"
     raise ValueError(msg)
 
