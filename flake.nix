@@ -108,8 +108,10 @@
               # every store path in the set.
               bun = pkgsFor.${system}.bun or pkgs.bun;
               # bun2nix builder set (hook, fetchBunDeps, ...); the `bun2nix`
-              # scope attribute is the CLI package.
-              bun2nixLib = (pkgs.extend inputs."bun2nix".overlays.default).bun2nix;
+              # scope attribute is the CLI package. Apply the overlay directly
+              # (final=prev=pkgs) instead of pkgs.extend, which would re-run the
+              # whole nixpkgs fixpoint just to add this one leaf (~5s of eval).
+              bun2nixLib = (inputs."bun2nix".overlays.default pkgs pkgs).bun2nix;
               # makeScope reserves `packages`, so expose the package set as allPackages.
               allPackages = packages;
             }
