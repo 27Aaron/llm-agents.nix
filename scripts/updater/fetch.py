@@ -217,10 +217,6 @@ class PurlFetcher:
         """Discover the latest version for ``purl``."""
         return self.handler(purl).latest_version(purl, policy or VersionPolicy())
 
-    def locate(self, purl: Purl, resolved: Resolved) -> list[Location]:
-        """Build download locations for a resolved version."""
-        return self.handler(purl).locations(purl, resolved)
-
     def hashes(self, purl: Purl, resolved: Resolved) -> dict[str, str]:
         """Return ``{component: sri}`` for every location of a resolved version.
 
