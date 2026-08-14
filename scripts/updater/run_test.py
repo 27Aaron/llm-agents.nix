@@ -30,7 +30,14 @@ class Recorder:
 
 
 def recorders() -> dict[str, Recorder]:
-    kinds = ("github-source", "npm", "bun-github", "platform", "manifest")
+    kinds = (
+        "github-source",
+        "npm",
+        "bun-github",
+        "platform",
+        "manifest",
+        "manifest-checksums",
+    )
     return {k: Recorder() for k in kinds}
 
 
@@ -170,6 +177,30 @@ class TestRun(unittest.TestCase):
             rec.kwargs["platform_map"],
             {("linux", "amd64"): "x86_64-linux", ("darwin", "arm64"): "aarch64-darwin"},
         )
+
+    def test_manifest_checksums(self) -> None:
+        flows = recorders()
+        run(
+            PKG,
+            {
+                "kind": "manifest-checksums",
+                "versionSource": {"type": "text", "url": "https://x/latest"},
+                "manifestUrl": "https://x/{version}/m.json",
+                "checksumPath": "platforms.{platform}.checksum",
+                "platforms": {"x86_64-linux": "linux-x64"},
+                "versionPolicy": "follow_pointer",
+            },
+            flows=flows,  # type: ignore[arg-type]
+        )
+        rec = flows["manifest-checksums"]
+        assert rec.kwargs is not None
+        self.assertEqual(
+            rec.kwargs["manifest_url_template"], "https://x/{version}/m.json"
+        )
+        self.assertEqual(rec.kwargs["checksum_path"], "platforms.{platform}.checksum")
+        self.assertEqual(rec.kwargs["platforms"], {"x86_64-linux": "linux-x64"})
+        self.assertTrue(rec.kwargs["allow_downgrade"])
+        self.assertTrue(callable(rec.kwargs["fetch_latest"]))
 
     def test_unknown_kind_raises(self) -> None:
         with self.assertRaises(ValueError):

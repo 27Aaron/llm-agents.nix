@@ -8,6 +8,7 @@
   versionCheckHook,
   bubblewrap,
   socat,
+  mkUpdater,
   disableTelemetry ? false,
 }:
 
@@ -76,6 +77,20 @@ stdenv.mkDerivation {
   nativeInstallCheckInputs = [ versionCheckHook ];
 
   passthru.category = "AI Coding Agents";
+  passthru.updater = mkUpdater {
+    kind = "manifest-checksums";
+    versionSource = {
+      type = "text";
+      url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest";
+    };
+    manifestUrl = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/manifest.json";
+    checksumPath = "platforms.{platform}.checksum";
+    # Reuse the build's nix-system -> manifest-token map (the same tokens key
+    # both the download URL and the manifest checksums).
+    platforms = source.updater.platforms;
+    # Anthropic yanks bad releases by repointing `latest`, so follow it down.
+    versionPolicy = "follow_pointer";
+  };
 
   meta = with lib; {
     description = "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster";

@@ -33,6 +33,7 @@ from .flows import (
     update_bun_github,
     update_github_source,
     update_manifest_binaries,
+    update_manifest_checksums,
     update_npm_package,
     update_platform_binaries,
 )
@@ -53,6 +54,7 @@ _DEFAULT_FLOWS: FlowMap = {
     "bun-github": update_bun_github,
     "platform": update_platform_binaries,
     "manifest": update_manifest_binaries,
+    "manifest-checksums": update_manifest_checksums,
 }
 
 
@@ -159,6 +161,15 @@ def run(pkg_dir: Path, config: dict[str, Any], *, flows: FlowMap | None = None) 
             pkg_dir,
             manifest_url=config["manifestUrl"],
             platform_map=platform_map,
+        )
+    elif kind == "manifest-checksums":
+        flow["manifest-checksums"](
+            pkg_dir,
+            fetch_latest=_version_getter(config["versionSource"]),
+            manifest_url_template=config["manifestUrl"],
+            checksum_path=config["checksumPath"],
+            platforms=config["platforms"],
+            allow_downgrade=config.get("versionPolicy") == "follow_pointer",
         )
     else:
         msg = f"unknown updater kind {kind!r}"

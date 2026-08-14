@@ -36,6 +36,12 @@ let
       "manifestUrl"
       "platformMap"
     ];
+    "manifest-checksums" = [
+      "versionSource"
+      "manifestUrl"
+      "checksumPath"
+      "platforms"
+    ];
   };
 in
 config:
