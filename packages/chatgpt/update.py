@@ -1,144 +1,218 @@
 #!/usr/bin/env nix
-#! nix shell --inputs-from .# nixpkgs#python3 --command python3
-"""Update ChatGPT from OpenAI's moving latest Debian package."""
+#! nix shell --inputs-from .# nixpkgs#gnupg nixpkgs#python3 --command python3
+"""Update ChatGPT from OpenAI's signed Debian repository."""
 
 import base64
 import hashlib
-import io
+import subprocess
 import sys
-import tarfile
 import tempfile
 import urllib.request
 from pathlib import Path
-from typing import BinaryIO
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
 from updater import load_hashes, save_hashes, should_update
 
-HASHES_FILE = Path(__file__).parent / "hashes.json"
-URL_BASE = "https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest"
+PACKAGE_DIR = Path(__file__).parent
+HASHES_FILE = PACKAGE_DIR / "hashes.json"
+KEY_FILE = PACKAGE_DIR / "openai-archive-key.asc"
+KEY_FINGERPRINT = "3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4"
+REPO_BASE = "https://persistent.oaistatic.com/codex-app-prod/linux/deb"
+INRELEASE_PATH = "dists/stable/InRelease"
 PLATFORMS = {
-    "aarch64-linux": "chatgpt_arm64.deb",
-    "x86_64-linux": "chatgpt_amd64.deb",
+    "aarch64-linux": "arm64",
+    "x86_64-linux": "amd64",
 }
 USER_AGENT = (
     "llm-agents.nix package updater (+https://github.com/numtide/llm-agents.nix)"
 )
-AR_HEADER_SIZE = 60
 
 
-def request(url: str, *, method: str = "GET") -> urllib.request.Request:
-    """Build a request accepted by OpenAI's CDN."""
-    return urllib.request.Request(
-        url,
-        method=method,
+def fetch(path: str) -> bytes:
+    """Fetch one path from OpenAI's Debian repository."""
+    request = urllib.request.Request(
+        f"{REPO_BASE}/{path}",
         headers={"User-Agent": USER_AGENT},
     )
+    with urllib.request.urlopen(request) as response:
+        return bytes(response.read())
 
 
-def remote_etag(url: str) -> str | None:
-    """Return the latest artifact's ETag when the server supplies one."""
-    with urllib.request.urlopen(request(url, method="HEAD")) as response:
-        etag = response.headers.get("ETag")
-        return str(etag) if etag is not None else None
+def verify_inrelease(inrelease: bytes) -> str:
+    """Verify InRelease with the pinned OpenAI key and return its payload."""
+    with tempfile.TemporaryDirectory() as directory:
+        temporary = Path(directory)
+        inrelease_file = temporary / "InRelease"
+        release_file = temporary / "Release"
+        keyring_file = temporary / "openai-archive-key.gpg"
+        inrelease_file.write_bytes(inrelease)
+
+        subprocess.run(
+            [
+                "gpg",
+                "--batch",
+                "--dearmor",
+                "--output",
+                str(keyring_file),
+                str(KEY_FILE),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        verification = subprocess.run(
+            [
+                "gpgv",
+                "--keyring",
+                str(keyring_file),
+                "--status-fd",
+                "1",
+                "--output",
+                str(release_file),
+                str(inrelease_file),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if verification.returncode != 0:
+            msg = f"OpenAI InRelease signature verification failed:\n{verification.stderr}"
+            raise RuntimeError(msg)
+
+        valid_fingerprints = {
+            fields[2]
+            for line in verification.stdout.splitlines()
+            if (fields := line.split())[:2] == ["[GNUPG:]", "VALIDSIG"]
+        }
+        if KEY_FINGERPRINT not in valid_fingerprints:
+            msg = "OpenAI InRelease was not signed by the pinned key"
+            raise RuntimeError(msg)
+
+        return release_file.read_text()
 
 
-def read_ar_member(archive: BinaryIO, wanted: str) -> bytes:
-    """Read one member from the simple ar container used by Debian packages."""
-    archive.seek(0)
-    if archive.read(8) != b"!<arch>\n":
-        msg = "download is not an ar archive"
+def release_sha256(release: str, wanted_path: str) -> tuple[str, int]:
+    """Read the signed SHA256 and size for one repository index."""
+    in_sha256 = False
+    for line in release.splitlines():
+        if line == "SHA256:":
+            in_sha256 = True
+            continue
+        if in_sha256 and not line.startswith(" "):
+            break
+        if in_sha256:
+            digest, size, path = line.split()
+            if path == wanted_path:
+                return digest, int(size)
+
+    msg = f"{wanted_path} missing from signed InRelease SHA256 section"
+    raise ValueError(msg)
+
+
+def verify_index(index: bytes, expected_hash: str, expected_size: int) -> None:
+    """Verify a Packages index against its signed Release metadata."""
+    if len(index) != expected_size:
+        msg = f"Packages size mismatch: expected {expected_size}, got {len(index)}"
+        raise ValueError(msg)
+    actual_hash = hashlib.sha256(index).hexdigest()
+    if actual_hash != expected_hash:
+        msg = f"Packages SHA256 mismatch: expected {expected_hash}, got {actual_hash}"
         raise ValueError(msg)
 
-    while header := archive.read(AR_HEADER_SIZE):
-        if len(header) != AR_HEADER_SIZE:
-            msg = "truncated ar member header"
-            raise ValueError(msg)
-        name = header[:16].decode().strip().removesuffix("/")
-        size = int(header[48:58].decode().strip())
-        if name == wanted:
-            return archive.read(size)
-        archive.seek(size + size % 2, io.SEEK_CUR)
 
-    msg = f"{wanted} not found in Debian package"
-    raise ValueError(msg)
-
-
-def debian_version(archive: BinaryIO) -> str:
-    """Extract Version from the package's Debian control metadata."""
-    control_archive = read_ar_member(archive, "control.tar.xz")
-    with tarfile.open(fileobj=io.BytesIO(control_archive), mode="r:xz") as tar:
-        control = tar.extractfile("./control")
-        if control is None:
-            msg = "control file not found in control.tar.xz"
-            raise ValueError(msg)
-        for line in control.read().decode().splitlines():
-            if line.startswith("Version: "):
-                return line.removeprefix("Version: ")
-
-    msg = "Version field not found in Debian control file"
-    raise ValueError(msg)
+def parse_packages(packages: str) -> list[dict[str, str]]:
+    """Parse Debian control paragraphs from a Packages index."""
+    records: list[dict[str, str]] = []
+    for paragraph in packages.strip().split("\n\n"):
+        record: dict[str, str] = {}
+        for line in paragraph.splitlines():
+            if line.startswith((" ", "\t")):
+                continue
+            key, separator, value = line.partition(":")
+            if separator:
+                record[key] = value.strip()
+        records.append(record)
+    return records
 
 
-def update_source(
-    platform: str,
-    filename: str,
-    current: dict[str, str],
-) -> tuple[dict[str, str], bool]:
-    """Refresh one platform source if its upstream ETag changed."""
-    url = f"{URL_BASE}/{filename}"
-    etag = remote_etag(url)
-    if etag and etag == current.get("etag"):
-        print(f"{platform}: already up to date")
-        return current, False
+def source_from_index(platform: str, architecture: str, release: str) -> dict[str, str]:
+    """Return one platform source authenticated by the signed APT indexes."""
+    index_path = f"main/binary-{architecture}/Packages"
+    expected_hash, expected_size = release_sha256(release, index_path)
+    packages = fetch(f"dists/stable/{index_path}")
+    verify_index(packages, expected_hash, expected_size)
 
-    print(f"{platform}: downloading latest ChatGPT Debian package...")
-    with tempfile.TemporaryFile() as download:
-        hasher = hashlib.sha256()
-        with urllib.request.urlopen(request(url)) as response:
-            while chunk := response.read(1024 * 1024):
-                download.write(chunk)
-                hasher.update(chunk)
+    record = next(
+        (
+            candidate
+            for candidate in parse_packages(packages.decode())
+            if candidate.get("Package") == "chatgpt"
+            and candidate.get("Architecture") == architecture
+        ),
+        None,
+    )
+    if record is None:
+        msg = f"chatgpt ({architecture}) missing from {index_path}"
+        raise ValueError(msg)
 
-        version = debian_version(download)
-        if not should_update(current.get("version", ""), version):
-            print(
-                f"Warning: {platform} artifact changed without a version bump ({version})"
-            )
+    required_fields = ("Version", "Filename", "SHA256")
+    missing_fields = [field for field in required_fields if field not in record]
+    if missing_fields:
+        msg = f"chatgpt ({architecture}) missing fields: {', '.join(missing_fields)}"
+        raise ValueError(msg)
 
-        digest = base64.b64encode(hasher.digest()).decode()
-    updated = {
-        "version": version,
-        "url": url,
-        "hash": f"sha256-{digest}",
+    filename = record["Filename"]
+    if not filename.startswith("pool/") or ".." in Path(filename).parts:
+        msg = f"unsafe package filename in signed index: {filename}"
+        raise ValueError(msg)
+
+    digest = bytes.fromhex(record["SHA256"])
+    if len(digest) != hashlib.sha256().digest_size:
+        msg = f"invalid package SHA256 in signed index for {platform}"
+        raise ValueError(msg)
+
+    return {
+        "version": record["Version"],
+        "url": f"{REPO_BASE}/{filename}",
+        "hash": f"sha256-{base64.b64encode(digest).decode()}",
     }
-    if etag:
-        updated["etag"] = etag
-    print(f"{platform}: updated to {version}")
-    return updated, True
 
 
 def main() -> None:
-    """Refresh every pinned platform when OpenAI changes an artifact."""
+    """Refresh all sources from OpenAI's signed APT metadata."""
+    release = verify_inrelease(fetch(INRELEASE_PATH))
+    sources = {
+        platform: source_from_index(platform, architecture, release)
+        for platform, architecture in PLATFORMS.items()
+    }
+
+    versions = {source["version"] for source in sources.values()}
+    if len(versions) != 1:
+        msg = f"OpenAI architecture versions differ: {sorted(versions)}"
+        raise ValueError(msg)
+
     current = load_hashes(HASHES_FILE)
     current_sources = current.get("sources", {})
-    sources = {}
-    changed = False
-    for platform, filename in PLATFORMS.items():
-        source, source_changed = update_source(
-            platform,
-            filename,
-            current_sources.get(platform, {}),
-        )
-        sources[platform] = source
-        changed = changed or source_changed
+    for platform, source in sources.items():
+        current_version = current_sources.get(platform, {}).get("version", "")
+        if (
+            current_version
+            and source["version"] != current_version
+            and not should_update(current_version, source["version"])
+        ):
+            msg = (
+                f"refusing to downgrade {platform} from {current_version} "
+                f"to {source['version']}"
+            )
+            raise ValueError(msg)
 
-    if not changed:
+    if current_sources == sources:
         print("chatgpt: already up to date")
         return
 
     save_hashes(HASHES_FILE, {"sources": sources})
+    print(f"chatgpt: updated to {versions.pop()}")
 
 
 if __name__ == "__main__":

@@ -3,9 +3,12 @@
   flake,
   stdenv,
   fetchurl,
+  coreutils,
   dpkg,
   formatelf,
   makeWrapper,
+  perl,
+  wrapGAppsHook3,
   alsa-lib,
   at-spi2-atk,
   at-spi2-core,
@@ -24,6 +27,7 @@
   libgbm,
   libnotify,
   libpulseaudio,
+  libsecret,
   libusb1,
   libxkbcommon,
   nspr,
@@ -57,10 +61,15 @@ stdenv.mkDerivation {
     inherit (source) url hash;
   };
 
+  dontStrip = true;
+  dontWrapGApps = true;
+
   nativeBuildInputs = [
     formatelf
     dpkg
     makeWrapper
+    perl
+    wrapGAppsHook3
   ];
 
   buildInputs = [
@@ -106,6 +115,7 @@ stdenv.mkDerivation {
   runtimeDependencies = [
     libGL
     libgbm
+    libsecret
     pipewire
     wayland
   ];
@@ -152,8 +162,32 @@ stdenv.mkDerivation {
     ! grep -aFq "isLinux() && process.report" "$appAsar"
     grep -aFq "false /* nix:skip report */" "$appAsar"
 
+    # The app materializes bundled plugins in ~/.codex and rewrites selected
+    # manifests there. Node's fs.cp preserves the Nix store's read-only modes,
+    # so copy with coreutils and make only the user-owned destination writable.
+    # Keep the replacement byte-length-preserving so ASAR offsets stay valid.
+    original='async function Mne(e,t){if(S.default.platform===`darwin`){await lne(`/usr/bin/ditto`,[`--noqtn`,e,t]);return}if(S.default.platform!==`win32`){await y.default.cp(e,t,{recursive:!0,verbatimSymlinks:!0});return}let{copyDirectoryAllowDecryptedDestinationOnEncryptionFailure:n}=await Promise.resolve().then(()=>require("./windows-file-copy-Bw9CB6bJ.js"));await n({copy:()=>y.default.cp(e,t,{recursive:!0,verbatimSymlinks:!0}),destination:t,source:e})}'
+    replacement='async function Mne(e,t){let r=S.default.platform;if(r===`darwin`){await lne(`/usr/bin/ditto`,[`--noqtn`,e,t]);return}if(r!==`win32`){await lne(`cp`,[`-r`,e+`/.`,t]);await lne(`chmod`,[`-R`,`u+w`,t]);return}let{copyDirectoryAllowDecryptedDestinationOnEncryptionFailure:n}=await Promise.resolve().then(()=>require("./windows-file-copy-Bw9CB6bJ.js"));await n({copy:()=>y.default.cp(e,t,{recursive:!0,verbatimSymlinks:!0}),destination:t,source:e})}  '
+
+    if [ "''${#original}" -ne "''${#replacement}" ]; then
+      echo "ChatGPT bundled-plugin ASAR patch changed byte length" >&2
+      exit 1
+    fi
+
+    grep -aFq "$original" "$appAsar"
+    export original replacement
+    perl -0pi -e 'BEGIN { $from = $ENV{original}; $to = $ENV{replacement} } s/\Q$from\E/$to/' "$appAsar"
+    ! grep -aFq "$original" "$appAsar"
+    grep -aFq 'await lne(`chmod`,[`-R`,`u+w`,t])' "$appAsar"
+
     wrapProgram "$out/lib/chatgpt/ChatGPT" \
-      --prefix PATH : ${lib.makeBinPath [ xdg-utils ]}
+      "''${gappsWrapperArgs[@]}" \
+      --prefix PATH : ${
+        lib.makeBinPath [
+          coreutils
+          xdg-utils
+        ]
+      }
 
     runHook postInstall
   '';
