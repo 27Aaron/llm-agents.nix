@@ -69,13 +69,32 @@
         let
           system = pkgs.stdenv.hostPlatform.system;
 
+          # Generic {name}-template interpolation (Nix mirror of str.format) and
+          # a templated fetchurl built on it — the single templated-URL primitive
+          # shared between a package's build and its declarative updater.
+          interpolate = import ./lib/interpolate.nix;
+          fetchurlTemplate = import ./lib/fetchurl-template.nix {
+            inherit (pkgs) fetchurl;
+            inherit interpolate;
+          };
+
           scope = lib.makeScope pkgs.newScope (
             self:
             {
-              inherit flake inputs system;
+              inherit
+                flake
+                inputs
+                system
+                interpolate
+                fetchurlTemplate
+                ;
               platformSource = import ./lib/platform-source.nix {
-                inherit (pkgs) stdenv fetchurl;
+                inherit (pkgs) stdenv;
+                inherit fetchurlTemplate;
               };
+              # Validate a declarative passthru.updater config (see
+              # scripts/updater/run.py); packages opt out of update.py with it.
+              mkUpdater = import ./lib/mk-updater.nix { inherit (pkgs) lib; };
               # `bun build --compile` copies the running bun binary into the
               # executable it produces, so bun ends up inside our outputs
               # rather than being a build tool we can leave to the consumer.
@@ -97,8 +116,39 @@
             // lib.genAttrs packageNames (name: self.callPackage (./packages + "/${name}/package.nix") { })
           );
 
+          # Generate a standard passthru.updateScript from a package's
+          # declarative passthru.updater config (see lib/mk-update-script.nix).
+          mkUpdateScript = import ./lib/mk-update-script.nix {
+            inherit (pkgs)
+              lib
+              writeShellApplication
+              nix
+              git
+              cacert
+              bun
+              nodejs
+              ;
+            python3 = pkgs.python3;
+          };
+
+          # Attach passthru.updateScript to any package carrying passthru.updater,
+          # so one `nix run .#<pkg>.updateScript` drives every declarative updater.
+          withUpdateScript =
+            name: pkg:
+            if pkg ? updater then
+              pkg.overrideAttrs (old: {
+                passthru = (old.passthru or { }) // {
+                  updateScript = mkUpdateScript {
+                    inherit name;
+                    config = pkg.updater;
+                  };
+                };
+              })
+            else
+              pkg;
+
           # Only the packages, without the scope plumbing and helpers.
-          packages = lib.genAttrs packageNames (name: scope.${name});
+          packages = lib.mapAttrs withUpdateScript (lib.genAttrs packageNames (name: scope.${name}));
         in
         packages;
 
