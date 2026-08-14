@@ -240,31 +240,6 @@ class PurlFetcher:
 
 # --- shared helpers used by the concrete handlers -----------------------------
 
-# Named platform maps. Ship them once here so no updater re-declares the os/arch
-# translation. Keys are Nix platforms; values are the upstream's asset token.
-PLATFORM_MAPS: dict[str, dict[str, str]] = {
-    "goDl": {
-        "x86_64-linux": "linux-amd64",
-        "aarch64-linux": "linux-arm64",
-        "aarch64-darwin": "darwin-arm64",
-    },
-    "nodePlatforms": {
-        "x86_64-linux": "linux-x64",
-        "aarch64-linux": "linux-arm64",
-        "aarch64-darwin": "darwin-arm64",
-    },
-    "rustTargets": {
-        "x86_64-linux": "x86_64-unknown-linux-gnu",
-        "aarch64-linux": "aarch64-unknown-linux-gnu",
-        "aarch64-darwin": "aarch64-apple-darwin",
-    },
-    "bunTargets": {
-        "x86_64-linux": "linux-x64",
-        "aarch64-linux": "linux-aarch64",
-        "aarch64-darwin": "darwin-aarch64",
-    },
-}
-
 
 def _platform_vars(value: object) -> dict[str, str]:
     """Normalize one platform-map entry to a var set.
@@ -280,9 +255,9 @@ def _platform_vars(value: object) -> dict[str, str]:
 def resolve_platform_map(purl: Purl) -> dict[str, dict[str, str]]:
     """Resolve the ``x_platforms`` qualifier to nix-platform -> var set.
 
-    The value is a named map (``rustTargets``) from :data:`PLATFORM_MAPS`, or an
-    inline JSON object. Each entry maps to a var set: a string is shorthand for
-    ``{platform: <string>}``; an object supplies arbitrary vars for the URL.
+    The value is an inline JSON object (declared once per package, next to the
+    build's platform map). Each entry maps to a var set: a string is shorthand
+    for ``{platform: <string>}``; an object supplies arbitrary vars for the URL.
     """
     spec = purl.q("x_platforms")
     if not spec:
@@ -291,12 +266,10 @@ def resolve_platform_map(purl: Purl) -> dict[str, dict[str, str]]:
         parsed = json.loads(spec)
     except (ValueError, TypeError):
         parsed = None
-    if isinstance(parsed, dict):
-        return {str(k): _platform_vars(v) for k, v in parsed.items()}
-    if spec in PLATFORM_MAPS:
-        return {k: _platform_vars(v) for k, v in PLATFORM_MAPS[spec].items()}
-    msg = f"unknown platform map {spec!r}"
-    raise UnknownPlatformMapError(msg)
+    if not isinstance(parsed, dict):
+        msg = f"x_platforms must be a JSON object, got {spec!r}"
+        raise UnknownPlatformMapError(msg)
+    return {str(k): _platform_vars(v) for k, v in parsed.items()}
 
 
 def templated_locations(

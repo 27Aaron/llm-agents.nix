@@ -114,9 +114,12 @@ class TestTagTemplates(unittest.TestCase):
 
 
 class TestPlatformMaps(unittest.TestCase):
-    def test_named_map(self) -> None:
-        # A string token normalizes to the {platform} var.
-        p = Purl.parse("pkg:generic/go?x_platforms=goDl")
+    def test_string_tokens_normalized(self) -> None:
+        # A string token normalizes to the {platform} var, one entry per system.
+        p = Purl.parse(
+            'pkg:generic/go?x_platforms={"x86_64-linux":"linux-amd64",'
+            '"aarch64-linux":"linux-arm64","aarch64-darwin":"darwin-arm64"}'
+        )
         m = resolve_platform_map(p)
         self.assertEqual(m["x86_64-linux"], {"platform": "linux-amd64"})
         self.assertEqual(len(m), 3)
@@ -164,7 +167,10 @@ class TestPlatformMaps(unittest.TestCase):
             resolve_platform_map(p)
 
     def test_templated_fanout(self) -> None:
-        p = Purl.parse("pkg:generic/go?x_platforms=goDl")
+        p = Purl.parse(
+            'pkg:generic/go?x_platforms={"x86_64-linux":"linux-amd64",'
+            '"aarch64-linux":"linux-arm64","aarch64-darwin":"darwin-arm64"}'
+        )
         r = Resolved(version="1.22.0", ref="1.22.0")
         locs = templated_locations(
             p, r, "https://go.dev/dl/go{version}.{platform}.tar.gz"
@@ -218,7 +224,8 @@ class TestGithubHandler(unittest.TestCase):
         h = GithubHandler(fake_deps())
         p = Purl.parse(
             "pkg:github/cjpais/Handy"
-            "?x_platforms=nodePlatforms"
+            '?x_platforms={"x86_64-linux":"linux-x64","aarch64-linux":"linux-arm64",'
+            '"aarch64-darwin":"darwin-arm64"}'
             "&x_download_url=https://github.com/cjpais/Handy/releases/download/"
             "v%7Bversion%7D/handy-%7Bplatform%7D.tar.gz"
         )
@@ -313,7 +320,8 @@ class TestGenericHandler(unittest.TestCase):
         h = GenericHandler(fake_deps())
         p = Purl.parse(
             "pkg:generic/go"
-            "?x_platforms=goDl"
+            '?x_platforms={"x86_64-linux":"linux-amd64","aarch64-linux":"linux-arm64",'
+            '"aarch64-darwin":"darwin-arm64"}'
             "&x_download_url=https://go.dev/dl/go%7Bversion%7D.%7Bplatform%7D.tar.gz"
         )
         locs = h.locations(p, Resolved(version="1.22.0", ref="1.22.0"))
