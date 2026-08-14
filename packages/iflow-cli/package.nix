@@ -3,6 +3,7 @@
   fetchurl,
   buildNpmPackage,
   makeWrapper,
+  mkUpdater,
   ripgrep,
   runCommand,
 }:
@@ -52,6 +53,12 @@ buildNpmPackage {
   '';
 
   passthru.category = "AI Coding Agents";
+  passthru.updater = mkUpdater {
+    kind = "npm";
+    purl = "pkg:npm/%40iflow-ai/iflow-cli";
+    flakeAttr = ".#iflow-cli";
+    requireLockfile = false;
+  };
 
   meta = {
     description = "AI coding agent for the terminal with free model access via the iFlow platform";
