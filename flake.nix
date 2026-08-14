@@ -78,6 +78,13 @@
             inherit interpolate;
           };
 
+          # Route bun2nix's per-dep fetches through naked-fetchurl: ~3.4s (~15%)
+          # off eval, all in the bun packages. Output paths unchanged (FODs),
+          # only bun-cache .drv inputs differ, so it is a one-time cache rebuild.
+          pkgsBun = pkgs // {
+            fetchurl = import ./lib/naked-fetchurl.nix;
+          };
+
           scope = lib.makeScope pkgs.newScope (
             self:
             {
@@ -111,7 +118,7 @@
               # scope attribute is the CLI package. Apply the overlay directly
               # (final=prev=pkgs) instead of pkgs.extend, which would re-run the
               # whole nixpkgs fixpoint just to add this one leaf (~5s of eval).
-              bun2nixLib = (inputs."bun2nix".overlays.default pkgs pkgs).bun2nix;
+              bun2nixLib = (inputs."bun2nix".overlays.default pkgsBun pkgsBun).bun2nix;
               # makeScope reserves `packages`, so expose the package set as allPackages.
               allPackages = packages;
             }
