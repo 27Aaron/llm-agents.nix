@@ -24,10 +24,9 @@ def update_platform_binaries(
 ) -> None:
     """Update a package that repackages prebuilt per-platform binaries.
 
-    ``url_template`` may use ``{version}`` and ``{platform}`` placeholders.
-    The caller still owns version discovery via ``fetch_latest``; the URL
-    matrix and per-platform hashing run through the fetcher (a ``pkg:generic``
-    purl carrying the template and platform map).
+    ``url_template`` takes ``{version}`` and ``{platform}``. Version discovery
+    stays with ``fetch_latest``; the URL matrix and hashing run through a
+    ``pkg:generic`` purl carrying the template and platform map.
     """
     hashes_file = pkg_dir / "hashes.json"
     data = load_hashes(hashes_file)

@@ -1,8 +1,6 @@
 """Tests for the declarative updater runner (config -> flow dispatch).
 
-Zero-dependency (stdlib ``unittest``). The flow functions are replaced with
-recorders, so run() is verified offline: it maps each purl + kind to the right
-flow call with the right arguments.
+Flows are replaced with recorders, so run() is checked for correct dispatch.
 """
 
 from __future__ import annotations
@@ -131,7 +129,6 @@ class TestRun(unittest.TestCase):
         self.assertTrue(callable(rec.kwargs["fetch_latest"]))
 
     def test_platform_version_sources(self) -> None:
-
         # Each type builds a callable without raising.
         for source in (
             {"type": "github", "owner": "o", "repo": "r"},
@@ -145,7 +142,7 @@ class TestRun(unittest.TestCase):
             _version_getter({"type": "bogus"})
 
     def test_git_tags_picks_highest_stripping_v(self) -> None:
-        # Patch fetch_json (the getter imports it lazily from updater.http).
+        # Patch fetch_json; the getter imports it lazily from updater.http.
         def fake(_url: str) -> list[Any]:
             return [{"name": "v1.2.0"}, {"name": "v1.10.0"}, {"name": "v1.9.0"}]
 

@@ -1,9 +1,7 @@
 """Update flow for a version-templated JSON manifest of per-platform checksums.
 
-For tools that publish a ``latest`` version pointer plus a
-``{version}/manifest.json`` carrying a hex checksum per platform (the build
-rebuilds the download URL from the version). Writes ``{version, hashes}`` — the
-shape ``platformSource`` reads.
+Upstream ships a ``latest`` pointer plus ``{version}/manifest.json`` of hex
+checksums; the build rebuilds the URL from the version.
 """
 
 from __future__ import annotations
@@ -45,10 +43,10 @@ def update_manifest_checksums(
 ) -> None:
     """Bump version and per-platform hashes from a templated JSON manifest.
 
-    ``checksum_path`` is a dotted path with a ``{platform}`` placeholder into
-    the manifest, e.g. ``platforms.{platform}.checksum``. ``platforms`` maps
-    each nix system to its manifest platform token. ``allow_downgrade`` follows
-    the upstream pointer even when it moves down (yanked releases).
+    ``checksum_path`` is a dotted path with a ``{platform}`` placeholder, e.g.
+    ``platforms.{platform}.checksum``. ``platforms`` maps each nix system to its
+    manifest token. ``allow_downgrade`` follows the pointer down too, for yanked
+    releases.
     """
     hashes_file = pkg_dir / "hashes.json"
     data = load_hashes(hashes_file)

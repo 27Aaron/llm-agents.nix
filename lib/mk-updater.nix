@@ -1,26 +1,11 @@
-# Validate and normalize a declarative `passthru.updater` config.
-#
-# A package that can be updated by one of the shared flows declares its recipe
-# as data instead of shipping a packages/<name>/update.py script:
-#
-#   passthru.updater = mkUpdater {
-#     kind = "github-source";
-#     purl = "pkg:github/charmbracelet/crush";
-#     flakeAttr = ".#crush";
-#     depHashKey = "vendorHash";
-#   };
-#
-# CI reads this attrset (nix eval --json) and runs `python3 -m updater.run`,
-# which turns the purl back into the flow's arguments. See scripts/updater/run.py.
-#
-# This helper only validates required fields at eval time so a malformed config
-# fails `nix flake check` rather than the next weekly update run.
+# Validate a declarative `passthru.updater` config, so a malformed one fails
+# `nix flake check` instead of the next weekly update run. The recipe lives as
+# data (nix eval --json) that scripts/updater/run.py consumes.
 { lib }:
 let
-  # kind -> attributes the runner requires for that kind.
   requiredByKind = {
     # flakeAttr is injected from the package name by mk-update-script.nix, so
-    # it is not a required (or expected) config field.
+    # it is not a required config field here.
     "github-source" = [
       "purl"
       "depHashKey"

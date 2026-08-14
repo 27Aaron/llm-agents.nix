@@ -1,7 +1,6 @@
 """Behavioural tests for the flows that have offline-testable logic.
 
-The manifest-checksums flow parses a templated JSON manifest and converts
-per-platform hex checksums to SRI; ``fetch_json`` is patched so it runs offline.
+fetch_json is patched so the manifest-checksums flow runs offline.
 """
 
 from __future__ import annotations
@@ -67,7 +66,7 @@ class TestManifestChecksums(unittest.TestCase):
         self.assertEqual(data["hashes"]["aarch64-darwin"], hex_to_sri("22" * 32))
 
     def test_follow_pointer_allows_downgrade(self) -> None:
-        # From 1.0.0 "down" to 0.9.0 writes because allow_downgrade is set.
+        # 1.0.0 -> 0.9.0 writes because allow_downgrade is set.
         data = self._run(latest="0.9.0", allow_downgrade=True)
         self.assertEqual(data["version"], "0.9.0")
 

@@ -1,9 +1,6 @@
 # Generate a nixpkgs-standard `passthru.updateScript` from a validated
-# `passthru.updater` config. The script carries its own tools (python3, nix,
-# git, and per-kind bun/nodejs), so nothing about the update lives in CI: a
-# single `nix run .#<pkg>.updateScript` — or nixpkgs' update.nix, or nix-update
-# — drives it. It runs `scripts/updater/run.py` against the config, which the
-# derivation already carries as data.
+# `passthru.updater` config. The script carries its own tools so nothing about
+# the update lives in CI; it just runs scripts/updater/run.py against the config.
 {
   lib,
   writeShellApplication,
@@ -19,7 +16,7 @@
   config,
 }:
 let
-  # Tools each kind's flow shells out to, on top of the common set.
+  # Tools a kind's flow shells out to, on top of the common set.
   extraToolsByKind = {
     "npm" = [ nodejs ];
     "bun-github" = [
@@ -28,8 +25,8 @@ let
     ];
   };
   extraTools = extraToolsByKind.${config.kind} or [ ];
-  # The dependency-hash kinds build `.#<name>`; the attr is the package's own
-  # name, so inject it rather than restating it in every config.
+  # The flakeAttr is just `.#<name>`, so inject it instead of restating it in
+  # every config.
   needsFlakeAttr = builtins.elem config.kind [
     "github-source"
     "npm"

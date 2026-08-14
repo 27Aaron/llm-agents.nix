@@ -1,9 +1,6 @@
 """Python side of the interpolate conformance contract.
 
-Asserts the Python `interpolate` matches the expected output for every shared
-case. The Nix side is checked against the same fixture by the
-`interpolate-conformance` flake check, so both implementations are pinned to one
-contract. Keep this file and lib/interpolate.nix in lockstep.
+Shares one fixture with lib/interpolate.nix; keep the two in lockstep.
 """
 
 from __future__ import annotations

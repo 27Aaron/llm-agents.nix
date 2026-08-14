@@ -1,10 +1,6 @@
-# Prove the Nix and Python URL-template interpolation implement identical logic.
-#
-# The build interpolates a package's URL with lib/interpolate.nix; the updater
-# interpolates the same template with scripts/updater/interpolate.py. If they
-# ever diverge, the build and the updater would fetch different URLs. This check
-# runs BOTH over one shared fixture (scripts/updater/interpolate_cases.json) and
-# fails unless every case agrees — Nix result == Python result == expected.
+# Prove lib/interpolate.nix and scripts/updater/interpolate.py agree; if they
+# diverge, build and updater fetch different URLs. Runs both over one shared
+# fixture and fails unless Nix == Python == expected for every case.
 {
   pkgs,
   flake,
@@ -13,7 +9,6 @@ let
   interpolate = import ../lib/interpolate.nix;
   casesJson = builtins.readFile ../scripts/updater/interpolate_cases.json;
   cases = builtins.fromJSON casesJson;
-  # Compute every case with the Nix implementation at eval time.
   nixResults = map (case: interpolate case.template case.vars) cases;
 in
 pkgs.runCommand "interpolate-conformance"

@@ -22,12 +22,7 @@ def update_github_source(
     flake_attr: str,
     dep_hash_key: str,
 ) -> None:
-    """Update a package built from a GitHub release source tarball.
-
-    Bumps version/hash in hashes.json and recalculates the given dependency
-    hash (e.g. vendorHash for Go packages). Version discovery and the source
-    URL/hash are resolved through the purl fetcher (``pkg:github/owner/repo``).
-    """
+    """Bump version/src hash and recalc dep_hash_key (e.g. Go vendorHash)."""
     hashes_file = pkg_dir / "hashes.json"
     data = load_hashes(hashes_file)
     current = data["version"]

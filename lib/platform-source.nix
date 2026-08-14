@@ -1,23 +1,14 @@
-# Select the prebuilt release artifact for the host platform, using the
-# per-platform hashes stored in a package's hashes.json.
-#
-# A thin per-platform layer over `fetchurlTemplate`: it picks the host system's
-# token + hash and interpolates {version}/{platform} into the shared urlTemplate.
-# The URL scheme and platform map are the SAME data the declarative updater
-# needs (see scripts/updater/run.py, kind = "platform"), so this returns both
-# the `src` for the build and an `updater` fragment — declared once, never
-# divergent.
+# Select the prebuilt release artifact for the host platform from a package's
+# hashes.json. Returns both the build `src` and a matching `updater` fragment
+# from the same urlTemplate + platform map, so build and updater never diverge
+# (see scripts/updater/run.py, kind = "platform").
 { stdenv, fetchurlTemplate }:
 
 {
-  # Path to the package's hashes.json ({ version, hashes.<system> }).
-  hashesFile,
-  # Maps nix system -> the URL variables for that platform. A string is
-  # shorthand for the single {platform} var; an attrset supplies arbitrary vars
-  # (e.g. { os = "linux"; cpu = "x86_64"; }) interpolated into urlTemplate.
+  hashesFile, # { version, hashes.<system> }
+  # nix system -> URL vars. String is shorthand for the {platform} var; an
+  # attrset supplies arbitrary vars (e.g. { os = "linux"; cpu = "x86_64"; }).
   platforms,
-  # Canonical URL with {version} + platform placeholders, shared verbatim with
-  # the updater fragment below.
   urlTemplate,
 }:
 
@@ -39,8 +30,7 @@ in
     // platformVars;
     hash = versionData.hashes.${system};
   };
-  # Ready-to-merge `passthru.updater` fragment (add a `versionSource`). Derived
-  # from the same urlTemplate + platform map as `src`.
+  # Ready-to-merge passthru.updater fragment; caller adds a versionSource.
   updater = {
     kind = "platform";
     inherit urlTemplate platforms;

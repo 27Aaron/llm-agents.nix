@@ -1,14 +1,7 @@
-"""State stores: where a resolved version and its hashes are persisted.
+"""Where a resolved version and its hashes are persisted.
 
-The dummy-build dependency-hash dance (see :class:`updater.deps.DepHasher`)
-needs to stage a placeholder hash, trigger a failing build, and then either
-commit the real hash or roll back. Fusing that to ``hashes.json`` was the
-biggest thing blocking reuse — a repo that keeps ``cargoHash`` inline in
-``package.nix`` could not use it at all.
-
-A ``StateStore`` is that seam. ``HashesJsonStore`` is the sidecar
-implementation this repo uses; an inline-nix or nix-update-delegating store is
-a drop-in alternative that satisfies the same protocol.
+``StateStore`` is the seam that decouples the dummy-build hash dance from
+``hashes.json``, so a repo keeping ``cargoHash`` inline can reuse it too.
 """
 
 from __future__ import annotations
@@ -25,13 +18,13 @@ if TYPE_CHECKING:
 class StateStore(Protocol):
     """Read the current pin and write a new one.
 
-    ``stage_dummy`` / ``rollback`` / ``commit`` exist for the dependency-hash
-    round-trip: stage a placeholder, build (expected to fail), then commit the
-    real hash or roll back to the original.
+    ``stage_dummy`` / ``rollback`` / ``commit`` drive the hash round-trip: stage
+    a placeholder, build (expected to fail), then commit the real hash or roll
+    back.
     """
 
     def read(self) -> dict[str, Any]:
-        """Return the current persisted state (version and hashes)."""
+        """Return the current persisted state."""
         ...
 
     def write(self, data: dict[str, Any]) -> None:
@@ -39,7 +32,7 @@ class StateStore(Protocol):
         ...
 
     def get(self, key: str) -> str | None:
-        """Return the current value of one key, or None if absent."""
+        """Return one key's value, or None if absent."""
         ...
 
     def stage_dummy(self, key: str, dummy: str) -> None:
@@ -58,9 +51,8 @@ class StateStore(Protocol):
 class HashesJsonStore:
     """A ``hashes.json`` sidecar next to ``package.nix``.
 
-    Wrapping an existing ``data`` dict (rather than re-reading the file) lets a
-    flow that just built ``data`` keep mutating the same object, matching the
-    previous in-place behaviour.
+    Wraps an existing ``data`` dict rather than re-reading the file, so a flow
+    that just built ``data`` keeps mutating the same object.
     """
 
     def __init__(self, path: Path, *, data: dict[str, Any] | None = None) -> None:
@@ -87,7 +79,7 @@ class HashesJsonStore:
         self._set(key, dummy)
 
     def rollback(self, key: str, original: str | None) -> None:
-        """Restore the pre-staging value (dropping the key if it was absent)."""
+        """Restore the pre-staging value, dropping the key if it was absent."""
         if original is None:
             self._data.pop(key, None)
             save_hashes(self._path, self._data)

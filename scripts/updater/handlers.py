@@ -1,14 +1,7 @@
 """Concrete purl handlers: one per upstream ecosystem.
 
-Each handler answers the three :class:`~updater.fetch.PurlHandler` questions
-for its purl type. ``locations`` is pure (purl + resolved version in, URLs out)
-and is the most heavily tested surface; ``latest_version`` and ``source_hash``
-use the injected :class:`~updater.fetch.Deps` so they stay offline in tests.
-
-Version discovery reuses the qualifier extensions carried on the purl:
-``x_tag_template`` (ref shape), ``x_download_url`` (release-asset templates),
-``x_platforms`` (the os/arch matrix), ``x_dist_tag`` (npm), ``x_host`` (Gitea),
-and ``x_version_url`` + ``x_version_regex`` (generic text pointers).
+``locations`` is pure and heavily tested; ``latest_version``/``source_hash``
+take injected Deps so tests stay offline.
 """
 
 from __future__ import annotations
@@ -36,7 +29,7 @@ if TYPE_CHECKING:
 
 
 class BaseHandler:
-    """Shared plumbing: dependency wiring and the default ``source_hash``."""
+    """Shared dependency wiring and the default ``source_hash``."""
 
     purl_type: ClassVar[str] = ""
 
@@ -53,7 +46,7 @@ class BaseHandler:
     def _select_ref(
         self, refs: list[str], template: str, policy: VersionPolicy, purl: Purl
     ) -> Resolved:
-        """Strip refs to versions, let the policy pick, map the winner back."""
+        """Strip refs to versions, let the policy choose, map the winner back."""
         pairs = [(strip_tag_template(ref, template), ref) for ref in refs]
         chosen = policy.select([version for version, _ in pairs])
         if chosen is None:
@@ -121,8 +114,7 @@ class NpmHandler(BaseHandler):
             self.deps.fetch_json(f"https://registry.npmjs.org/{encoded}/{tag}")
         )
         version = str(data["version"])
-        # A dist-tag is a single pointer; run it through the policy for the
-        # downgrade/should-write semantics, not to choose among many.
+        # dist-tag is a single pointer; policy is unused here (no choice to make).
         _ = policy
         return Resolved(version=version, ref=version)
 
@@ -205,12 +197,10 @@ class GiteaHandler(BaseHandler):
 
 
 class GenericHandler(BaseHandler):
-    """Arbitrary hosts driven entirely by qualifiers (CDNs, pointer files).
+    """Arbitrary hosts driven by qualifiers (CDNs, pointer files).
 
-    Version discovery supports a text-pointer (``x_version_url`` +
-    ``x_version_regex``). Richer generic modes — JSON manifests, per-platform
-    checksum files, cross-ecosystem version sources — are deliberately left to
-    a per-package hook; this handler covers the common templated case.
+    Covers the text-pointer case (``x_version_url`` + ``x_version_regex``).
+    Richer modes (JSON manifests, checksum files) are left to per-package hooks.
     """
 
     purl_type: ClassVar[str] = "generic"

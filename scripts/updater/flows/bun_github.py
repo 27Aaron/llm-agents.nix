@@ -21,11 +21,10 @@ def update_bun_github(
     *,
     ref_prefix: str = "v",
 ) -> None:
-    """Update a bun2nix package built from a GitHub release source tarball.
+    """Bump version/hash and regenerate bun.nix from the upstream bun.lock.
 
-    Bumps version/hash in hashes.json and regenerates bun.nix from the
-    upstream bun.lock. A non-default ``ref_prefix`` becomes an ``x_tag_template``
-    qualifier so the fetcher builds the same archive URL as before.
+    A non-default ref_prefix becomes an x_tag_template qualifier so the
+    fetcher builds the same archive URL as before.
     """
     flake_root = pkg_dir.parent.parent
     hashes_file = pkg_dir / "hashes.json"

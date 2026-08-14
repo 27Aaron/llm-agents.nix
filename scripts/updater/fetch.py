@@ -1,18 +1,8 @@
-"""PurlFetcher core: the source-identity layer above :mod:`updater.purl`.
+"""Source-identity layer: dispatch a purl to a handler for version/location/hash.
 
-This is the project-agnostic spine. A :class:`PurlFetcher` dispatches on a
-purl's type to a :class:`~updater.handlers.PurlHandler`, which answers three
-questions: what is the latest version, where are its bytes, and what do they
-hash to. Everything Nix-specific (dependency hashes, state stores) sits in a
-thin adapter *above* this layer, not inside it.
-
-The network and hashing primitives are injected via :class:`Deps` so the pure
-logic (version selection, URL construction) is unit-testable without touching
-the network or Nix, and so the whole layer lifts out cleanly when extracted.
-
-purl is an identity, not always a locator (see the spec). The ``x_*`` qualifier
-extensions carried on a purl are how we bridge that gap: tag templates,
-download-url templates, and platform matrices. See :mod:`updater.handlers`.
+Network and hashing go through :class:`Deps` so version selection and URL
+construction stay offline-testable. A purl is an identity, not always a
+locator, so the ``x_*`` qualifiers carry tag/url templates and platform maps.
 """
 
 from __future__ import annotations
@@ -34,11 +24,10 @@ if TYPE_CHECKING:
 
     from .purl import Purl
 
-# Ordering key that reuses the library's existing semantic-version comparator.
 _version_key = cmp_to_key(compare_versions)
 
-# Common markers that make a version a prerelease. Conservative on purpose: a
-# date-suffixed tag like 2025.11.06-8fe8a63 is NOT a prerelease.
+# Conservative on purpose: a date-suffixed tag like 2025.11.06-8fe8a63 is NOT a
+# prerelease.
 _PRERELEASE = re.compile(
     r"(?i)[-.](rc|alpha|beta|pre|preview|dev|nightly|canary|snapshot)"
 )
@@ -53,20 +42,20 @@ class UnknownPurlTypeError(FetchError):
 
 
 class NoVersionFoundError(FetchError):
-    """Version discovery returned no candidate matching the policy."""
+    """No discovered version matched the policy."""
 
 
 class MissingQualifierError(FetchError):
-    """A purl lacks a qualifier the handler needs to locate its bytes."""
+    """A purl lacks a qualifier the handler needs."""
 
     def __init__(self, key: str, purl: Purl) -> None:
-        """Record the missing qualifier key and the offending purl."""
+        """Record the missing qualifier key and the purl."""
         msg = f"purl {purl} is missing required qualifier {key!r}"
         super().__init__(msg)
 
 
 class UnknownPlatformMapError(FetchError):
-    """An ``x_platforms`` value names a platform map the library doesn't ship."""
+    """An ``x_platforms`` value names a platform map we don't ship."""
 
 
 @dataclass(frozen=True)
@@ -81,7 +70,7 @@ class Location:
 
 @dataclass(frozen=True)
 class Resolved:
-    """The outcome of version discovery for a purl."""
+    """A discovered version and the upstream ref it maps to."""
 
     version: str  # bare version, e.g. "1.2.3"
     ref: str  # upstream tag/ref this maps to, e.g. "rust-v1.2.3"
@@ -90,7 +79,7 @@ class Resolved:
 
 @dataclass(frozen=True)
 class VersionPolicy:
-    """How to choose one version from the candidates a handler discovers.
+    """How to pick one version from the candidates a handler discovers.
 
     ``kind`` is one of ``semver`` (highest), ``prerelease_exclude`` (highest
     stable), ``regex_filter`` (highest matching ``regex``), or
@@ -106,7 +95,7 @@ class VersionPolicy:
         return self.kind != "semver"
 
     def _eligible(self, versions: list[str]) -> list[str]:
-        """Apply the policy's filter, without picking a winner."""
+        """Apply the policy's filter without picking a winner."""
         if self.kind == "regex_filter" and self.regex is not None:
             pattern = self.regex
             return [v for v in versions if re.fullmatch(pattern, v)]
@@ -126,8 +115,8 @@ class VersionPolicy:
     def should_write(self, current: str, chosen: str) -> bool:
         """Whether ``chosen`` should replace ``current``.
 
-        ``follow_pointer`` allows downgrades (the upstream pointer is
-        authoritative); every other policy requires a strict increase.
+        ``follow_pointer`` allows downgrades (upstream pointer is authoritative);
+        every other policy requires a strict increase.
         """
         if self.kind == "follow_pointer":
             return current != chosen
@@ -138,8 +127,8 @@ class VersionPolicy:
 class Deps:
     """Injected side-effecting primitives (network, hashing).
 
-    Real code uses :func:`default_deps`; tests pass fakes so the handlers'
-    pure logic can be exercised offline.
+    Tests pass fakes so handler logic runs offline; real code uses
+    :func:`default_deps`.
     """
 
     fetch_json: Callable[[str], dict[str, Any] | list[Any]]
@@ -148,7 +137,7 @@ class Deps:
 
 
 def default_deps() -> Deps:
-    """Wire :class:`Deps` to the library's real HTTP and hashing helpers."""
+    """Wire :class:`Deps` to the real HTTP and hashing helpers."""
 
     def hash_url(url: str, *, unpack: bool = False) -> str:
         return calculate_url_hash(url, unpack=unpack)
@@ -185,8 +174,7 @@ class PurlFetcher:
     @classmethod
     def default(cls, deps: Deps | None = None) -> PurlFetcher:
         """Build a fetcher with every built-in handler registered."""
-        # Imported lazily: handlers import from this module, so a top-level
-        # import would be circular.
+        # Lazy: handlers import from this module, so a top-level import is circular.
         from .handlers import (  # noqa: PLC0415
             CargoHandler,
             GenericHandler,
@@ -221,8 +209,7 @@ class PurlFetcher:
     def hashes(self, purl: Purl, resolved: Resolved) -> dict[str, str]:
         """Return ``{component: sri}`` for every location of a resolved version.
 
-        Multi-location sets (platform matrices) are hashed in parallel, so a
-        many-platform package is not slower than the old per-flow thread pool.
+        Platform matrices are hashed in parallel.
         """
         handler = self.handler(purl)
         locations = handler.locations(purl, resolved)
@@ -238,14 +225,11 @@ class PurlFetcher:
             }
 
 
-# --- shared helpers used by the concrete handlers -----------------------------
-
-
 def _platform_vars(value: object) -> dict[str, str]:
     """Normalize one platform-map entry to a var set.
 
-    A bare string token is the ``{platform}`` variable; an object is its own
-    set of interpolation variables (e.g. ``{"os": "linux", "cpu": "x86_64"}``).
+    A bare string is the ``{platform}`` variable; an object is its own set of
+    interpolation vars (e.g. ``{"os": "linux", "cpu": "x86_64"}``).
     """
     if isinstance(value, dict):
         return {str(k): str(v) for k, v in value.items()}
@@ -253,12 +237,7 @@ def _platform_vars(value: object) -> dict[str, str]:
 
 
 def resolve_platform_map(purl: Purl) -> dict[str, dict[str, str]]:
-    """Resolve the ``x_platforms`` qualifier to nix-platform -> var set.
-
-    The value is an inline JSON object (declared once per package, next to the
-    build's platform map). Each entry maps to a var set: a string is shorthand
-    for ``{platform: <string>}``; an object supplies arbitrary vars for the URL.
-    """
+    """Resolve the ``x_platforms`` qualifier (inline JSON) to nix-platform -> var set."""
     spec = purl.q("x_platforms")
     if not spec:
         return {}
@@ -278,7 +257,7 @@ def templated_locations(
     """Build locations from a URL template, fanning out over the platform map.
 
     The template may use ``{version}``, ``{ref}``, ``{platform}`` and any key
-    in ``resolved.extra``. With no platform map it yields a single ``src``.
+    in ``resolved.extra``. No platform map yields a single ``src``.
     """
     unpack = purl.q("x_unpack") == "true"
     fmt: dict[str, str] = {

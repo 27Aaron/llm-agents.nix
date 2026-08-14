@@ -1,23 +1,8 @@
-"""Declarative updater runner: execute a package's ``passthru.updater`` config.
+"""Execute a package's declarative ``passthru.updater`` config.
 
-Instead of a hand-written ``packages/<name>/update.py``, a package can declare
-its update recipe as data on the derivation::
-
-    passthru.updater = {
-      kind = "github-source";              # which flow to run
-      purl = "pkg:github/charmbracelet/crush";
-      flakeAttr = ".#crush";
-      depHashKey = "vendorHash";
-    };
-
-``mkUpdater`` validates that attrset; CI serializes it to JSON (Nix does the
-eval) and calls this runner, which turns the config back into the flow's
-arguments and delegates to the existing, tested flow functions — so declarative
-packages and legacy ``update.py`` scripts share one code path.
-
-Supported kinds: ``github-source``, ``npm``, ``bun-github`` (purl-derived);
-``platform`` and ``manifest`` (prebuilt binaries, with an explicit
-``versionSource``). Packages with genuinely bespoke logic keep an ``update.py``.
+Turns the JSON config CI hands us back into flow arguments and delegates to the
+tested flow functions, so declarative packages and legacy ``update.py`` scripts
+share one code path.
 """
 
 from __future__ import annotations
@@ -45,7 +30,7 @@ from .version import (
     fetch_version_from_text,
 )
 
-# The flow entry points, injectable so run() is testable without network/Nix.
+# Injectable so run() is testable without network/Nix.
 FlowMap = dict[str, Callable[..., None]]
 
 _DEFAULT_FLOWS: FlowMap = {
@@ -82,12 +67,7 @@ def _latest_git_tag(url: str) -> str:
 
 
 def _version_getter(source: dict[str, Any]) -> Callable[[], str]:
-    """Build the ``fetch_latest`` callable for a platform kind's versionSource.
-
-    ``github`` -> latest release; ``npm`` -> dist-tag version; ``text`` ->
-    regex match over a fetched page (or whole stripped body); ``git-tags`` ->
-    highest version in a Gitea/Forgejo tags API list.
-    """
+    """Build the ``fetch_latest`` callable for a versionSource type."""
     from .http import fetch_text  # noqa: PLC0415 -- keep http import lazy
 
     source_type = source["type"]

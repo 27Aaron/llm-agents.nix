@@ -1,8 +1,6 @@
 """Tests for the purl fetcher core and the five handlers.
 
-Zero-dependency (stdlib ``unittest``). The handlers' network calls are served
-by ``fake_deps``, so version discovery and location construction are exercised
-entirely offline. Run: ``cd scripts && python3 -m updater.fetch_test``.
+Network is faked via fake_deps, so discovery and location building run offline.
 """
 
 from __future__ import annotations
@@ -115,7 +113,7 @@ class TestTagTemplates(unittest.TestCase):
 
 class TestPlatformMaps(unittest.TestCase):
     def test_string_tokens_normalized(self) -> None:
-        # A string token normalizes to the {platform} var, one entry per system.
+        # A string token normalizes to the {platform} var.
         p = Purl.parse(
             'pkg:generic/go?x_platforms={"x86_64-linux":"linux-amd64",'
             '"aarch64-linux":"linux-arm64","aarch64-darwin":"darwin-arm64"}'

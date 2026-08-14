@@ -22,14 +22,11 @@ def update_manifest_binaries(
 ) -> None:
     """Update a package from a manifest listing per-platform urls and sha256.
 
-    The manifest must contain ``latest`` and a ``files`` list with ``os``,
-    ``arch``, ``url`` and ``sha256`` (hex) entries. ``platform_map`` maps
-    ``(os, arch)`` pairs to Nix platform names. Upstream has changed file
-    naming before, so the exact URL is recorded rather than reconstructed.
-
-    Each file is modelled as a :class:`~updater.fetch.Location` carrying its
-    upstream checksum, so the hex-to-SRI conversion runs through the shared
-    ``source_hash`` path instead of being duplicated here.
+    The manifest needs ``latest`` and a ``files`` list of ``os``/``arch``/
+    ``url``/``sha256`` (hex). ``platform_map`` maps ``(os, arch)`` to Nix
+    platform names. The exact URL is recorded, not reconstructed: upstream has
+    changed file naming before. Each file goes through ``Location`` so the
+    hex-to-SRI conversion reuses the shared ``source_hash`` path.
     """
     hashes_file = pkg_dir / "hashes.json"
     data = load_hashes(hashes_file)

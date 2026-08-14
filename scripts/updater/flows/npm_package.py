@@ -18,14 +18,13 @@ if TYPE_CHECKING:
 
 
 def _npm_purl(npm_package: str, *, fetchzip: bool) -> Purl:
-    """Build the ``pkg:npm`` purl for a (possibly scoped) package name."""
+    """Build the pkg:npm purl for a (possibly scoped) package name."""
     if npm_package.startswith("@"):
         scope, _, name = npm_package.partition("/")
         purl = Purl("npm", scope, name)
     else:
         purl = Purl("npm", None, npm_package)
-    # fetchzip packages hash the unpacked tarball; carry that on the purl so
-    # the handler's source_hash uses nix-prefetch-url --unpack.
+    # fetchzip hashes the unpacked tarball; flag it so source_hash unpacks.
     return purl.with_qualifiers(x_unpack="true") if fetchzip else purl
 
 
@@ -40,14 +39,10 @@ def update_npm_package(
     fetchzip: bool = False,
     supplement_optional_deps: bool = False,
 ) -> None:
-    """Update a package built from an npm registry tarball.
+    """Bump version/hash, refresh package-lock.json, recalc npmDepsHash.
 
-    Bumps version and source hash in hashes.json, refreshes package-lock.json
-    from the tarball, and recalculates npmDepsHash.
-
-    Set ``fetchzip=True`` for packages whose derivation fetches the tarball
-    with fetchzip instead of fetchurl: the source hash is then calculated over
-    the unpacked tarball and stored under "hash" instead of "sourceHash".
+    fetchzip=True hashes the unpacked tarball and stores it under "hash"
+    instead of "sourceHash" (for derivations using fetchzip, not fetchurl).
     """
     hashes_file = pkg_dir / "hashes.json"
     data = load_hashes(hashes_file)
@@ -80,8 +75,8 @@ def update_npm_package(
             sys.exit(1)
         print("Warning: Failed to generate lockfile, continuing anyway...")
 
-    # Dummy npmDepsHash: update_dependency_hash builds the package and
-    # replaces it with the hash reported by the failed build.
+    # Dummy npmDepsHash; update_dependency_hash swaps in the real one from
+    # the failed build's reported hash.
     source_hash_key = "hash" if fetchzip else "sourceHash"
     data = {
         "version": resolved.version,

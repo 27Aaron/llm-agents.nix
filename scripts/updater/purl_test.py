@@ -1,12 +1,6 @@
 """Golden tests for the purl parser.
 
-Zero-dependency (stdlib ``unittest``) so it travels with ``purl.py`` when the
-fetcher is extracted. Run from the repo root: ``python3 -m updater.purl_test``
-with ``scripts`` on the path (``cd scripts && python3 -m updater.purl_test``).
-
-The GOLDEN list is the exact set of source identities produced by scanning all
-65 packages/*/update.py scripts. It is the real-world fixture set: every
-identity the fetcher must handle round-trips through the parser here.
+GOLDEN is the real fixture set: every source identity from the in-repo updaters.
 """
 
 from __future__ import annotations
@@ -17,8 +11,6 @@ from typing import Any
 
 from updater.purl import Purl, PurlError
 
-# The unique source identities produced by scanning all 65 in-repo package
-# updaters (hermes-agent and hermes-desktop share one, so 64 distinct purls).
 GOLDEN = [
     "pkg:generic/amp",
     "pkg:generic/antigravity-cli",
@@ -96,7 +88,6 @@ class TestGoldenSet(unittest.TestCase):
                 self.assertTrue(p.name, f"empty name for {s}")
 
     def test_reparse_equality(self) -> None:
-        # Parsing the canonical string of a parsed purl yields an equal object.
         for s in GOLDEN:
             with self.subTest(purl=s):
                 p = Purl.parse(s)
@@ -114,7 +105,7 @@ class TestComponents(unittest.TestCase):
     def test_scoped_npm(self) -> None:
         p = Purl.parse("pkg:npm/%40zaly/cli")
         self.assertEqual(p.type, "npm")
-        self.assertEqual(p.namespace, "@zaly")  # percent-decoded
+        self.assertEqual(p.namespace, "@zaly")  # %40 decoded
         self.assertEqual(p.name, "cli")
         self.assertIsNone(p.version)
 
@@ -181,8 +172,7 @@ class TestMutators(unittest.TestCase):
         self.assertEqual(p.q("x_tag_template"), "v{v}")
 
     def test_frozen(self) -> None:
-        # Alias through Any so the frozen violation is a runtime check, not a
-        # mypy read-only error.
+        # Alias through Any so it is a runtime check, not a mypy read-only error.
         obj: Any = Purl.parse("pkg:npm/skills")
         with self.assertRaises(FrozenInstanceError):
             obj.name = "other"

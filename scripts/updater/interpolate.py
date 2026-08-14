@@ -1,16 +1,10 @@
-"""Interpolate ``{name}`` placeholders in a URL template.
+"""Interpolate {name} placeholders in a URL template.
 
-This MUST match Nix ``builtins.replaceStrings`` (see lib/interpolate.nix)
-exactly, because the build interpolates a URL with the Nix version and the
-updater interpolates the same template here — any divergence means the two
-fetch different URLs. The shared contract is exercised by the
-``interpolate-conformance`` flake check over scripts/updater/interpolate_cases.json.
-
-Semantics (matching replaceStrings, NOT str.format):
-- Replace each ``{name}`` for name in ``variables``; a single left-to-right
-  pass, so text introduced by a replacement is not re-scanned.
-- Placeholders with no matching variable are left as-is (no error).
-- Extra variables are unused; a literal ``{`` or ``}`` is fine.
+Must match Nix builtins.replaceStrings (lib/interpolate.nix) exactly: build and
+updater interpolate the same template, so any divergence means they fetch
+different URLs. The interpolate-conformance flake check pins the shared contract.
+Semantics (replaceStrings, NOT str.format): single left-to-right pass so a
+replacement's output is not re-scanned; unknown placeholders are left as-is.
 """
 
 from __future__ import annotations

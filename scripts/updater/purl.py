@@ -1,18 +1,10 @@
-"""Package-URL (purl) parsing — the source-identity spine of the updater.
+"""Package-URL (purl) parsing. Grammar: pkg:type/namespace/name@version?qualifiers#subpath.
 
-This module is deliberately self-contained: pure standard library, and it
-imports nothing from ``updater.*``. That is on purpose. The purl fetcher is
-meant to become an extractable, project-agnostic library, and this parser is
-its seed. Keep it dependency-free so it lifts out unchanged.
-
-A purl identifies an upstream package. It is an *identity*, not always a
-*locator*: per the spec, resolving a purl to a downloadable artifact is the
-consumer's job. That is why our fetcher layers ``x_*`` qualifier extensions
-(tag templates, download-url templates, platform matrices) on top of the bare
-identity. See the PurlHandler layer for how those are consumed.
-
-Reference: https://github.com/package-url/purl-spec (PURL-SPECIFICATION.rst).
-Grammar: ``pkg:type/namespace/name@version?qualifiers#subpath``
+Stdlib-only and imports nothing from updater.*: this parser is the seed of an
+extractable, project-agnostic library, so keep it dependency-free. A purl is an
+identity, not a locator; resolving it to a downloadable artifact is the fetcher's
+job, which is why it layers x_* qualifier extensions on top of the bare identity.
+Spec: https://github.com/package-url/purl-spec (PURL-SPECIFICATION.rst).
 """
 
 from __future__ import annotations
@@ -32,10 +24,10 @@ def _split_right(s: str, sep: str) -> tuple[str, str | None]:
 
 
 def _decode_qualifiers(raw: str) -> dict[str, str]:
-    """Parse a ``key=value&key=value`` qualifier string.
+    """Parse a key=value&key=value qualifier string.
 
-    Keys are lowercased; values are percent-decoded; empty values are dropped
-    (the spec says a qualifier with an empty value is simply absent).
+    Keys lowercased, values percent-decoded. Empty values are dropped: the spec
+    treats a qualifier with an empty value as absent.
     """
     out: dict[str, str] = {}
     for pair in raw.split("&"):
@@ -50,7 +42,7 @@ def _decode_qualifiers(raw: str) -> dict[str, str]:
 
 
 def _decode_subpath(raw: str) -> str | None:
-    """Normalize a subpath: strip slashes, drop '.'/'..', decode segments."""
+    """Normalize a subpath: strip slashes, drop '.'/'..', decode each segment."""
     segments = [
         unquote(seg) for seg in raw.strip("/").split("/") if seg not in ("", ".", "..")
     ]
@@ -58,7 +50,7 @@ def _decode_subpath(raw: str) -> str | None:
 
 
 def _encode_qualifiers(qualifiers: dict[str, str]) -> str:
-    # Canonical form sorts keys; values are percent-encoded, separators are not.
+    # Canonical form sorts keys; encode values, not separators.
     parts = [
         f"{key}={quote(qualifiers[key], safe='')}"
         for key in sorted(qualifiers)
@@ -71,8 +63,7 @@ def _encode_qualifiers(qualifiers: dict[str, str]) -> str:
 class Purl:
     """A parsed Package-URL.
 
-    ``namespace`` and ``name`` are stored decoded (``@zaly``, not ``%40zaly``);
-    ``str(purl)`` re-encodes to canonical form.
+    Fields are stored decoded (@zaly, not %40zaly); str(purl) re-encodes canonically.
     """
 
     type: str
@@ -84,10 +75,9 @@ class Purl:
 
     @classmethod
     def parse(cls, s: str) -> Purl:
-        """Parse a purl string into its components.
+        """Parse a purl string, splitting right-to-left per the spec.
 
-        Follows the spec's right-to-left split order: subpath, then
-        qualifiers, then scheme, then type/namespace/name@version.
+        Order: subpath, qualifiers, scheme, then type/namespace/name@version.
         """
         if not isinstance(s, str) or not s.strip():
             msg = "purl must be a non-empty string"
@@ -102,7 +92,7 @@ class Purl:
             msg = f"purl must start with 'pkg:': {s!r}"
             raise PurlError(msg)
 
-        # The spec allows (and canonical form omits) leading slashes after pkg:.
+        # Spec allows leading slashes after pkg:; canonical form omits them.
         rest = rest.lstrip("/")
         type_part, sep, path = rest.partition("/")
         if not sep or not type_part:

@@ -1,7 +1,6 @@
 """Tests for the state store and the dummy-build dependency hasher.
 
-Zero-dependency (stdlib ``unittest``). ``DepHasher`` takes an injected build
-command, so the dummy-build round-trip is exercised without invoking Nix.
+DepHasher takes an injected build command, so no Nix runs.
 """
 
 from __future__ import annotations

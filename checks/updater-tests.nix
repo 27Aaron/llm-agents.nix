@@ -1,7 +1,5 @@
-# Run the updater library's unit tests (purl parser, purl fetcher, handlers,
-# version policy). These are zero-dependency stdlib unittest modules; the flake
-# check runs them so the fetcher's logic can't silently regress. Discovery
-# picks up every scripts/updater/*_test.py, so new tests are included for free.
+# Run the updater library's stdlib unittest modules under the flake check.
+# Discovery picks up every scripts/updater/*_test.py, so new tests are free.
 {
   pkgs,
   flake,
