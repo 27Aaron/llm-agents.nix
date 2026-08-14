@@ -1,6 +1,7 @@
 {
   lib,
   flake,
+  mkUpdater,
   stdenv,
   platformSource,
   unzip,
@@ -54,6 +55,19 @@ stdenv.mkDerivation {
   versionCheckProgramArg = [ "--version" ];
 
   passthru.category = "Code Review";
+  passthru.updater = mkUpdater {
+    kind = "platform";
+    versionSource = {
+      type = "text";
+      url = "https://cli.coderabbit.ai/releases/latest/VERSION";
+    };
+    urlTemplate = "https://cli.coderabbit.ai/releases/{version}/coderabbit-{platform}.zip";
+    platforms = {
+      x86_64-linux = "linux-x64";
+      aarch64-linux = "linux-arm64";
+      aarch64-darwin = "darwin-arm64";
+    };
+  };
 
   meta = with lib; {
     description = "AI-powered code review CLI tool";

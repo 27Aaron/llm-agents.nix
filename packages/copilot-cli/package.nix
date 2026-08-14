@@ -1,6 +1,7 @@
 {
   lib,
   flake,
+  mkUpdater,
   stdenv,
   platformSource,
   makeWrapper,
@@ -83,6 +84,19 @@ stdenv.mkDerivation (finalAttrs: {
   versionCheckProgramArg = [ "--version" ];
 
   passthru.category = "AI Coding Agents";
+  passthru.updater = mkUpdater {
+    kind = "platform";
+    versionSource = {
+      type = "npm";
+      package = "@github/copilot";
+    };
+    urlTemplate = "https://registry.npmjs.org/@github/copilot-{platform}/-/copilot-{platform}-{version}.tgz";
+    platforms = {
+      x86_64-linux = "linux-x64";
+      aarch64-linux = "linux-arm64";
+      aarch64-darwin = "darwin-arm64";
+    };
+  };
 
   meta = {
     description = "GitHub Copilot CLI brings the power of Copilot coding agent directly to your terminal.";

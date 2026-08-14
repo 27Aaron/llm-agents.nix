@@ -1,5 +1,6 @@
 {
   lib,
+  mkUpdater,
   stdenv,
   makeWrapper,
   wrapBuddy,
@@ -61,6 +62,20 @@ stdenv.mkDerivation {
   versionCheckProgramArg = "--version";
 
   passthru.category = "AI Coding Agents";
+  passthru.updater = mkUpdater {
+    kind = "platform";
+    versionSource = {
+      type = "npm";
+      package = "@opencode-ai/cli";
+      tag = "next";
+    };
+    urlTemplate = "https://registry.npmjs.org/@opencode-ai/cli-{platform}/-/cli-{platform}-{version}.tgz";
+    platforms = {
+      x86_64-linux = "linux-x64";
+      aarch64-linux = "linux-arm64";
+      aarch64-darwin = "darwin-arm64";
+    };
+  };
 
   meta = {
     description = "OpenCode 2 preview CLI";
