@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
 from .hash import calculate_url_hash
 from .http import fetch_json, fetch_text
+from .interpolate import interpolate
 from .version import compare_versions, should_update
 
 if TYPE_CHECKING:
@@ -314,9 +315,11 @@ def templated_locations(
     }
     platforms = resolve_platform_map(purl)
     if not platforms:
-        return [Location("src", url_template.format(**fmt), unpack=unpack)]
+        return [Location("src", interpolate(url_template, fmt), unpack=unpack)]
     return [
-        Location(nix_platform, url_template.format(**fmt, **plat_vars), unpack=unpack)
+        Location(
+            nix_platform, interpolate(url_template, {**fmt, **plat_vars}), unpack=unpack
+        )
         for nix_platform, plat_vars in platforms.items()
     ]
 
