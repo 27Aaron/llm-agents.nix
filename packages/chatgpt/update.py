@@ -2,7 +2,6 @@
 #! nix shell --inputs-from .# nixpkgs#gnupg nixpkgs#python3 --command python3
 """Update ChatGPT from OpenAI's signed Debian repository."""
 
-import base64
 import hashlib
 import subprocess
 import sys
@@ -13,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
 from updater import load_hashes, save_hashes, should_update
+from updater.hash import hex_to_sri
 
 PACKAGE_DIR = Path(__file__).parent
 HASHES_FILE = PACKAGE_DIR / "hashes.json"
@@ -167,15 +167,14 @@ def source_from_index(platform: str, architecture: str, release: str) -> dict[st
         msg = f"unsafe package filename in signed index: {filename}"
         raise ValueError(msg)
 
-    digest = bytes.fromhex(record["SHA256"])
-    if len(digest) != hashlib.sha256().digest_size:
+    if len(bytes.fromhex(record["SHA256"])) != hashlib.sha256().digest_size:
         msg = f"invalid package SHA256 in signed index for {platform}"
         raise ValueError(msg)
 
     return {
         "version": record["Version"],
         "url": f"{REPO_BASE}/{filename}",
-        "hash": f"sha256-{base64.b64encode(digest).decode()}",
+        "hash": hex_to_sri(record["SHA256"]),
     }
 
 
