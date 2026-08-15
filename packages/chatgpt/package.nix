@@ -159,7 +159,6 @@ stdenv.mkDerivation {
     appAsar="$out/lib/chatgpt/resources/app.asar"
     grep -aFq "isLinux() && process.report" "$appAsar"
     sed -i 's/isLinux() \&\& process\.report/false \/\* nix:skip report \*\//' "$appAsar"
-    ! grep -aFq "isLinux() && process.report" "$appAsar"
     grep -aFq "false /* nix:skip report */" "$appAsar"
 
     # The app materializes bundled plugins in ~/.codex and rewrites selected
@@ -177,7 +176,6 @@ stdenv.mkDerivation {
     grep -aFq "$original" "$appAsar"
     export original replacement
     perl -0pi -e 'BEGIN { $from = $ENV{original}; $to = $ENV{replacement} } s/\Q$from\E/$to/' "$appAsar"
-    ! grep -aFq "$original" "$appAsar"
     grep -aFq 'await lne(`chmod`,[`-R`,`u+w`,t])' "$appAsar"
 
     wrapProgram "$out/lib/chatgpt/ChatGPT" \
