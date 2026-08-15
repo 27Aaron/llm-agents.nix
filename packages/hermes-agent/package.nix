@@ -34,10 +34,16 @@ let
       hash = "sha256-Re/R/0aSxFNNG9jnbSg+3D0OhQV1mPyxmIJT7ExFaP0=";
     };
 
-    nativeBuildInputs = with rustPlatform; [
-      cargoSetupHook
-      maturinBuildHook
-    ];
+    nativeBuildInputs =
+      with rustPlatform;
+      [
+        cargoSetupHook
+        maturinBuildHook
+      ]
+      # The 0.7.3 tag still carries version 0.7.0 in the workspace Cargo.toml
+      # (pyproject's version is dynamic from it), which fails the metadata
+      # check and hermes' nemo-relay>=0.7.1 requirement.
+      ++ [ python3.pkgs.pyprojectVersionPatchHook ];
 
     pythonImportsCheck = [
       "nemo_relay"
