@@ -18,20 +18,20 @@ let
   # PyPI ships wheels only, so build from source with maturin.
   nemo-relay = python3.pkgs.buildPythonPackage rec {
     pname = "nemo-relay";
-    version = "0.6.0";
+    version = "0.7.3";
     pyproject = true;
 
     src = fetchFromGitHub {
       owner = "NVIDIA";
       repo = "NeMo-Relay";
       tag = version;
-      hash = "sha256-mqI1tDl01a+FCv1FSMqvzYGuS/7hNlc99jcFiN6dRIM=";
+      hash = "sha256-g7xHQOcccuyHIBiVY5GQHpd1vk99RMwuw923OR4+x3E=";
     };
 
     cargoDeps = rustPlatform.fetchCargoVendor {
       inherit src;
       name = "nemo-relay-${version}";
-      hash = "sha256-KxPNGhYHmMFCSiEJomZztrc2P/knYA0It+vuurIccCQ=";
+      hash = "sha256-Re/R/0aSxFNNG9jnbSg+3D0OhQV1mPyxmIJT7ExFaP0=";
     };
 
     nativeBuildInputs = with rustPlatform; [
@@ -163,13 +163,13 @@ let
     };
   };
 
-  version = "2026.8.3";
+  version = "2026.8.13";
 
   src = fetchFromGitHub {
     owner = "NousResearch";
     repo = "hermes-agent";
     tag = "v${version}";
-    hash = "sha256-S6TSGgpf37N8YgbTv70dT+LaPiiaQ4/lJV+js2hnCPk=";
+    hash = "sha256-A+pprddWqewhUjD8d+PLdTHAO5SZV6YwPhJrC2T2dFE=";
   };
 
   # Upstream moved ui-tui/ and web/ into npm workspaces with a single root
@@ -180,7 +180,7 @@ let
   hermes-frontend = buildNpmPackage {
     pname = "hermes-frontend";
     inherit version src;
-    npmDepsHash = "sha256-33ALD6Th++LCp8JiVO6ba27GhuP3GBuLGUuyoJg99iM=";
+    npmDepsHash = "sha256-B/i/G3g/ZJNdc8Ip83mO38fzpz76QLHxd4G2/SnESGo=";
 
     # The apps/desktop workspace pulls in electron; skip its binary download
     # and all install scripts — the esbuild/vite builds below don't need them.
