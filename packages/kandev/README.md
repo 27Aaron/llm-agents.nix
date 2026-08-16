@@ -66,3 +66,21 @@ command, static `{{model}}` substitution, and optional MCP strategy.
 
 These packages affect Local and Worktree execution on the Kandev host. Docker
 images and SSH hosts need their own executable and credential provisioning.
+
+## Desktop runtime
+
+Build one runtime and pass it to Kandev Desktop so its embedded backend and
+Finder-launched application use identical packages and environment:
+
+```nix
+let
+  kandevRuntime = pkgs.kandev.override {
+    claudeSupport = true;
+    ompSupport = true;
+    extraPackages = [ pkgs.gh ];
+  };
+in
+pkgs.kandev-desktop.override {
+  inherit kandevRuntime;
+}
+```
