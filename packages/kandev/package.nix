@@ -189,6 +189,8 @@ buildGoModule (_finalAttrs: {
     "-X main.Version=v${version}"
   ];
 
+  patches = [ ./use-pi-cli-passthrough.patch ];
+
   postPatch = ''
     # Nix sandboxes do not populate FHS bin directories. Preserve the fake curl
     # precedence while letting this upstream test find mktemp and shell tools.
