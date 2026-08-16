@@ -10,8 +10,6 @@
   copyDesktopItems,
   makeDesktopItem,
 
-  # Directly linked (DT_NEEDED); auto-formatelf resolves these from
-  # buildInputs and fails the build if any are missing.
   alsa-lib,
   at-spi2-atk,
   at-spi2-core,
@@ -23,7 +21,6 @@
   gcc-unwrapped,
   glib,
   gtk3,
-  libdrm,
   libX11,
   libxcb,
   libXcomposite,
@@ -37,12 +34,9 @@
   nss,
   pango,
 
-  # Provides libudev, which the main binary links directly. The libs-only
-  # build avoids pulling the whole systemd closure.
+  # libs-only build of systemd to avoid pulling the whole systemd closure
   systemdLibs,
 
-  # Loaded at runtime via dlopen. Nothing lists these in DT_NEEDED, so they go
-  # in runtimeDependencies to land on the RUNPATH regardless.
   libglvnd,
   libsecret,
   libnotify,
@@ -59,10 +53,6 @@
 }:
 
 let
-  pname = "zcode";
-
-  # Official Linux builds are electron-builder `.deb` packages; the download
-  # server publishes one per platform under a per-release directory.
   source = platformSource {
     hashesFile = ./hashes.json;
     platforms = {
@@ -85,7 +75,7 @@ let
   };
 in
 stdenvNoCC.mkDerivation {
-  inherit pname;
+  pname = "zcode";
   inherit (source) version src;
 
   nativeBuildInputs = [
@@ -108,12 +98,10 @@ stdenvNoCC.mkDerivation {
     glib
     gsettings-desktop-schemas
     gtk3
-    libdrm
     libgbm
     libX11
     libxcb
     libXcomposite
-    libXcursor
     libXdamage
     libXext
     libXfixes
@@ -125,14 +113,15 @@ stdenvNoCC.mkDerivation {
     systemdLibs
   ];
 
-  # dlopen()ed at runtime, so auto-formatelf cannot discover them from
-  # DT_NEEDED; list them here to force them onto every payload's RUNPATH.
+  # dlopen()ed at runtime, so not discoverable from DT_NEEDED; list them
+  # here to put them on the RUNPATH.
   runtimeDependencies = [
     libayatana-appindicator
     libglvnd
     libnotify
     libpulseaudio
     libsecret
+    libXcursor
     pipewire
     wayland
   ];
@@ -157,11 +146,7 @@ stdenvNoCC.mkDerivation {
 
     chmod +x $out/lib/ZCode/zcode
 
-    # auto-formatelf sets the interpreter and RUNPATHs. The wrapper only adds
-    # the app dir (so the bundled GL/Vulkan libs find each other), xdg-utils on
-    # PATH, and the icon/schema data dirs.
     makeWrapper "$out/lib/ZCode/zcode" "$out/bin/zcode" \
-      --prefix LD_LIBRARY_PATH : "$out/lib/ZCode" \
       --suffix PATH : "${lib.makeBinPath [ xdg-utils ]}" \
       --prefix XDG_DATA_DIRS : "$XDG_ICON_DIRS:$GSETTINGS_SCHEMAS_PATH" \
       --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true}}"
@@ -178,9 +163,8 @@ stdenvNoCC.mkDerivation {
         versionSource = {
           type = "text";
           url = "https://zcode.z.ai/en";
-          # The homepage's download section carries the current release; anchor
-          # on the pluginDownload key that immediately follows it so a changelog
-          # entry can never shadow the latest version.
+          # Anchor on the pluginDownload key that follows the download section
+          # so a changelog entry cannot shadow the latest version.
           regex = ''\\"version\\":\\"([0-9]+\.[0-9]+\.[0-9]+)\\"},\\"pluginDownload\\"'';
         };
       }
