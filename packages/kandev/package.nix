@@ -189,7 +189,10 @@ buildGoModule (_finalAttrs: {
     "-X main.Version=v${version}"
   ];
 
-  patches = [ ./use-pi-cli-passthrough.patch ];
+  patches = [
+    ./prefer-native-acp-runtimes.patch
+    ./use-pi-cli-passthrough.patch
+  ];
 
   postPatch = ''
     # Nix sandboxes do not populate FHS bin directories. Preserve the fake curl
