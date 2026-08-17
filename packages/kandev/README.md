@@ -38,8 +38,9 @@ OpenCode, Copilot, Gemini, Droid, Kilocode, and Qwen prefer the packaged CLI for
 host ACP probes, inference, command previews, and task launches. Claude, Codex,
 Pi, and Amp retain their separate ACP adapters. Other CLIs serve their built-in
 profile's discovery, login, passthrough, or native runtime behavior. Claude
-support also points `claude-agent-acp` at the Nix-packaged executable instead of
-its incompatible bundled binary on NixOS.
+and Codex support also point their adapters (`claude-agent-acp` via
+`CLAUDE_CODE_EXECUTABLE`, `codex-acp` via `CODEX_PATH`) at the Nix-packaged
+executables instead of their incompatible bundled binaries on NixOS.
 
 Pi chat and inference retain Kandev's upstream `npx pi-acp` path. This package's
 passthrough patch launches the local `pi` CLI, so enable `piSupport` or otherwise

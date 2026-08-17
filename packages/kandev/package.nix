@@ -111,11 +111,15 @@ let
   ++ lib.optional qoderSupport "qodercli"
   ++ lib.optional qwenSupport "qwen";
   agentPath = lib.makeBinPath agentRuntimePackages;
-  # claude-agent-acp ignores PATH and defaults to an npm-bundled native binary
-  # whose FHS interpreter is unavailable on NixOS.
-  agentRuntimeEnvironment = lib.optionalAttrs claudeSupport {
-    CLAUDE_CODE_EXECUTABLE = lib.getExe claude-code;
-  };
+  # The npm ACP adapters bundle native CLI binaries whose FHS interpreters are
+  # unavailable on NixOS. Both adapters honor these overrides and ignore PATH.
+  agentRuntimeEnvironment =
+    lib.optionalAttrs claudeSupport {
+      CLAUDE_CODE_EXECUTABLE = lib.getExe claude-code;
+    }
+    // lib.optionalAttrs codexSupport {
+      CODEX_PATH = lib.getExe codex;
+    };
   agentRuntimeWrapperArgs = lib.concatLists (
     lib.mapAttrsToList (name: value: [
       "--set"
@@ -283,8 +287,7 @@ buildGoModule (_finalAttrs: {
     for command in ${lib.escapeShellArgs agentRuntimeCommands}; do
       PATH=${agentPath} command -v "$command" >/dev/null
     done
-    ${lib.concatStringsSep "
-" (
+    ${lib.concatStringsSep "\n" (
       lib.mapAttrsToList (name: value: ''
         grep -aF '${name}' $out/bin/kandev >/dev/null
         grep -aF '${value}' $out/bin/kandev >/dev/null
