@@ -371,6 +371,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>orca</strong> - ADE for working with a fleet of parallel coding agents</summary>
+
+- **Source**: binary
+- **License**: MIT
+- **Homepage**: https://onorca.dev
+- **Usage**: `nix run github:numtide/llm-agents.nix#orca -- --help`
+- **Nix**: [packages/orca/package.nix](packages/orca/package.nix)
+
+</details>
+<details>
 <summary><strong>pi</strong> - A terminal-based coding agent with multi-model support</summary>
 
 - **Source**: bytecode
