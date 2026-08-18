@@ -1436,6 +1436,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>git-ai</strong> - Git extension for tracking AI-generated code in repositories</summary>
+
+- **Source**: source
+- **License**: Apache-2.0
+- **Homepage**: https://github.com/git-ai-project/git-ai
+- **Usage**: `nix run github:numtide/llm-agents.nix#git-ai -- --help`
+- **Nix**: [packages/git-ai/package.nix](packages/git-ai/package.nix)
+
+</details>
+<details>
 <summary><strong>git-surgeon</strong> - Git primitives for autonomous coding agents</summary>
 
 - **Source**: source
