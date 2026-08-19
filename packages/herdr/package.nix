@@ -81,12 +81,18 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # sandbox.
   doCheck = false;
 
-  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
-    installShellCompletion --cmd herdr \
-      --bash <("$out/bin/herdr" completion bash) \
-      --fish <("$out/bin/herdr" completion fish) \
-      --zsh <("$out/bin/herdr" completion zsh)
-  '';
+  postInstall =
+    lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+      installShellCompletion --cmd herdr \
+        --bash <("$out/bin/herdr" completion bash) \
+        --fish <("$out/bin/herdr" completion fish) \
+        --zsh <("$out/bin/herdr" completion zsh)
+    ''
+    + ''
+      install -d "$out/share/herdr"
+      cp -r --no-preserve=mode ${finalAttrs.src}/src/integration/assets "$out/share/herdr/integrations"
+      find "$out/share/herdr/integrations" -name '*.test.ts' -delete
+    '';
 
   doInstallCheck = true;
   nativeInstallCheckInputs = [
