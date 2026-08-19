@@ -194,6 +194,11 @@ inputs."nixpkgs".lib.extend (
         githubId = 66107;
         name = "Daniel Poelzleithner";
       };
+      r17x = {
+        github = "r17x";
+        githubId = 16365952;
+        name = "RiN";
+      };
       selmison = {
         github = "selmison";
         githubId = 24687232;
