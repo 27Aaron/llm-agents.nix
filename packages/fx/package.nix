@@ -1,6 +1,7 @@
 {
   lib,
   stdenv,
+  flake,
   fetchFromGitHub,
   zig,
   versionCheckHook,
@@ -38,7 +39,7 @@ stdenv.mkDerivation (finalAttrs: {
     changelog = "https://github.com/vercel-labs/fx/releases/tag/v${finalAttrs.version}";
     license = licenses.asl20;
     sourceProvenance = with sourceTypes; [ fromSource ];
-    maintainers = with maintainers; [ ];
+    maintainers = with flake.lib.maintainers; [ jossephus ];
     mainProgram = "fx";
     platforms = platforms.unix;
   };
