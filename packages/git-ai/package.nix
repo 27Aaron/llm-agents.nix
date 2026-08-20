@@ -7,7 +7,6 @@
   perl,
   versionCheckHook,
   versionCheckHomeHook,
-  nix-update-script,
 }:
 
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -52,10 +51,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ];
   versionCheckProgramArg = "version";
 
-  passthru = {
-    updateScript = nix-update-script { };
-    category = "Utilities";
-  };
+  passthru.category = "Utilities";
 
   meta = with lib; {
     description = "Git extension for tracking AI-generated code in repositories";
