@@ -97,6 +97,7 @@ python3.pkgs.buildPythonApplication rec {
   pythonRelaxDeps = [
     "click"
     "cryptography"
+    "fastapi"
     "idna"
     "mcp"
     "openai"
