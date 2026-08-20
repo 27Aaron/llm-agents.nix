@@ -191,6 +191,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>fx</strong> - Tiny, open, embeddable, native coding agent</summary>
+
+- **Source**: source
+- **License**: Apache-2.0
+- **Homepage**: https://github.com/vercel-labs/fx
+- **Usage**: `nix run github:numtide/llm-agents.nix#fx -- --help`
+- **Nix**: [packages/fx/package.nix](packages/fx/package.nix)
+
+</details>
+<details>
 <summary><strong>gemini-cli</strong> - AI agent that brings the power of Gemini directly into your terminal</summary>
 
 - **Source**: source
