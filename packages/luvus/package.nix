@@ -5,6 +5,7 @@
   fetchFromGitHub,
   rustPlatform,
   makeWrapper,
+  curl,
   git,
   gh,
   openssh,
@@ -43,7 +44,11 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   nativeBuildInputs = [ makeWrapper ];
 
-  doCheck = false;
+  # needs git worktrees and curl for a file:// fetch
+  nativeCheckInputs = [
+    curl
+    git
+  ];
 
   postFixup = ''
     wrapProgram $out/bin/luvus \
