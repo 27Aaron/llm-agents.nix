@@ -19,6 +19,11 @@ inputs."nixpkgs".lib.extend (
         githubId = 19240940;
         name = "Adam";
       };
+      andreszb = {
+        github = "andreszb";
+        githubId = 3385877;
+        name = "Andrés Zambrano";
+      };
       Bad3r = {
         github = "Bad3r";
         githubId = 25513724;
