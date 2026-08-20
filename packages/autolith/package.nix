@@ -24,7 +24,7 @@ in
       changelog = "https://github.com/lambda-symbolics/autolith/releases/tag/v${source.version}";
       license = licenses.isc;
       sourceProvenance = with sourceTypes; [ fromSource ];
-      maintainers = with maintainers; [ ];
+      maintainers = with maintainers; [ luciusmagn ];
       mainProgram = "autolith";
       platforms = [
         "x86_64-linux"
