@@ -907,6 +907,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>luvus</strong> - Mission control for your AI coding agents</summary>
+
+- **Source**: source
+- **License**: AGPL-3.0-or-later
+- **Homepage**: https://luvus.dev
+- **Usage**: `nix run github:numtide/llm-agents.nix#luvus -- --help`
+- **Nix**: [packages/luvus/package.nix](packages/luvus/package.nix)
+
+</details>
+<details>
 <summary><strong>mardi-gras</strong> - Terminal UI for Beads issue tracking with a parade-inspired workflow view</summary>
 
 - **Source**: source
