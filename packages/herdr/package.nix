@@ -8,6 +8,7 @@
   xcbuild,
   cctools,
   installShellFiles,
+  libnotify,
   versionCheckHook,
   versionCheckHomeHook,
 }:
@@ -67,6 +68,11 @@ rustPlatform.buildRustPackage (finalAttrs: {
       --replace-fail '.arg("build")' '.arg("build")
           .arg("-Dcpu=baseline")' \
       --replace-fail '.arg(format!("-Dtarget={zig_target}"))' ""
+  ''
+  + lib.optionalString stdenv.hostPlatform.isLinux ''
+    substituteInPlace src/platform/linux.rs \
+      --replace-fail 'let mut cmd = command("notify-send");' \
+        'let mut cmd = command("${libnotify}/bin/notify-send");'
   '';
 
   preBuild = ''
