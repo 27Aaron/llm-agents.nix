@@ -1,36 +1,37 @@
 {
-  fetchFromGitHub,
-  flake,
   lib,
   pkgs,
+  flake,
+  fetchFromGitHub,
 }:
 
 let
-  source = import ./source.nix { inherit fetchFromGitHub; };
+  versionData = lib.importJSON ./hashes.json;
+  inherit (versionData) version;
+
+  src = fetchFromGitHub {
+    owner = "lambda-symbolics";
+    repo = "autolith";
+    tag = "v${version}";
+    inherit (versionData) hash;
+  };
+
+  # Vendored copy of upstream's nix/package.nix, refreshed by update.py.
+  upstream = import ./upstream-package.nix { inherit pkgs src; };
 in
-(import ./upstream-package.nix {
-  inherit pkgs;
-  inherit (source) src;
-}).overrideAttrs
-  (old: {
-    inherit (source) version;
+upstream.overrideAttrs (old: {
+  name = "autolith-${version}";
 
-    passthru = (old.passthru or { }) // {
-      category = "AI Assistants";
-    };
+  passthru = old.passthru // {
+    category = "AI Assistants";
+  };
 
-    meta = with lib; {
-      description = "Live, self-modifying Common Lisp AI agent";
-      homepage = "https://github.com/lambda-symbolics/autolith";
-      changelog = "https://github.com/lambda-symbolics/autolith/releases/tag/v${source.version}";
-      license = licenses.isc;
-      sourceProvenance = with sourceTypes; [ fromSource ];
-      maintainers = with flake.lib.maintainers; [ luciusmagn ];
-      mainProgram = "autolith";
-      platforms = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "aarch64-darwin"
-      ];
-    };
-  })
+  meta = old.meta // {
+    description = "Live, self-modifying Common Lisp AI agent";
+    homepage = "https://github.com/lambda-symbolics/autolith";
+    changelog = "https://github.com/lambda-symbolics/autolith/releases/tag/v${version}";
+    license = lib.licenses.isc;
+    sourceProvenance = with lib.sourceTypes; [ fromSource ];
+    maintainers = with flake.lib.maintainers; [ luciusmagn ];
+  };
+})

@@ -3,8 +3,15 @@
 let
   lib = pkgs.lib;
   inherit (pkgs.stdenv.hostPlatform.extensions) sharedLibrary;
-  colorlispSharedLibraryFlag = if pkgs.stdenv.isDarwin then "-dynamiclib" else "-shared";
+  colorlispSharedLibraryFlag = if pkgs.stdenv.hostPlatform.isDarwin then "-dynamiclib" else "-shared";
   fffSourceCommit = "e2cad2f09ea617d4c024f396f21d80e557f23a17";
+
+  # Quicklisp's NYAML archive includes dangling symlinks in its unused test data.
+  nyaml = pkgs.sbclPackages.nyaml.overrideAttrs (old: {
+    postInstall = (old.postInstall or "") + ''
+      rm -rf "$out/test/yaml-test-suite-data"
+    '';
+  });
 
   clColorist = pkgs.sbcl.buildASDFSystem {
     pname = "cl-colorist";
@@ -15,6 +22,39 @@ let
       rev = "a4b65e63f40248c091d8ccf6023ad6fef5de7f0d";
       hash = "sha256-UhQnhWYyX+VYhYbiLCMfw3vutdNyWn/CJj2xQPKYcAM=";
     };
+  };
+
+  clLlmProviderApi = pkgs.sbcl.buildASDFSystem {
+    pname = "cl-llm-provider-api";
+    version = "0.1.0";
+    src = pkgs.fetchFromGitHub {
+      owner = "lambda-symbolics";
+      repo = "cl-llm-provider-api";
+      rev = "af49d9d99fbf82ed0d91fa7c352cc2489845b015";
+      hash = "sha256-2ayWg2QKXvr44epQLvQJmf3ArMv7LsGhWOZZMFRI0Mg=";
+    };
+    lispLibs = with pkgs.sbclPackages; [
+      babel
+      bordeaux-threads
+      ironclad
+    ];
+  };
+
+  clSkills = pkgs.sbcl.buildASDFSystem {
+    pname = "cl-skills";
+    version = "0.1.0";
+    src = pkgs.fetchFromGitHub {
+      owner = "lambda-symbolics";
+      repo = "cl-skills";
+      rev = "a34b85a3aabca9530c5f9772ea988a6399a57963";
+      hash = "sha256-+DyXQwWJYDBa87gq4/QSkzkhZpe+DbsTGt/d1Ipk468=";
+    };
+    lispLibs = [
+      pkgs.sbclPackages.ironclad
+      nyaml
+      pkgs.sbclPackages.serapeum
+      sexpConfig
+    ];
   };
 
   clinedi = pkgs.sbcl.buildASDFSystem {
@@ -263,7 +303,7 @@ let
   # The native helper wraps Linux bubblewrap, seccomp, and network namespaces.
   # macOS uses cl-exec-sandbox's built-in Seatbelt backend without a helper.
   sandboxHelper =
-    if pkgs.stdenv.isLinux then
+    if pkgs.stdenv.hostPlatform.isLinux then
       pkgs.stdenv.mkDerivation {
         pname = "cl-exec-sandbox-helper";
         version = "0.1.0";
@@ -319,7 +359,7 @@ let
 
   autolithSystem = pkgs.sbcl.buildASDFSystem {
     pname = "autolith";
-    version = "0.35.0";
+    version = "0.41.2";
     inherit src;
     systems = [
       "autolith"
@@ -347,6 +387,8 @@ let
       clExecSandbox
       clifff
       clJobpond
+      clLlmProviderApi
+      clSkills
       idsmall
       mcparen
       sbclGenerations
@@ -438,6 +480,7 @@ let
         ];
       }
       ''
+
         mkdir -p "$out"
         tar -xjf ${pkgs.sbcl.src} --strip-components=1 -C "$out"
         test -f "$out/version.lisp-expr"
@@ -446,7 +489,7 @@ let
 
   # Sandboxing uses Bubblewrap and the private helper on Linux; other
   # platforms fall back to the portable unsandboxed path in cl-exec-sandbox.
-  sandboxEnvironment = lib.optionalString pkgs.stdenv.isLinux ''
+  sandboxEnvironment = lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
     export CL_EXEC_SANDBOX_BWRAP="${pkgs.bubblewrap}/bin/bwrap"
     export CL_EXEC_SANDBOX_HELPER="${sandboxHelper}/libexec/cl-exec-sandbox-helper"
   '';
@@ -628,10 +671,18 @@ pkgs.writeShellApplication {
     pkgs.perl
     runtime
   ]
-  ++ lib.optionals pkgs.stdenv.isLinux [ pkgs.bubblewrap ];
+  ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.bubblewrap ];
   text = ''
-    home="''${HOME:-/home/user}"
-    data_home="''${XDG_DATA_HOME:-$home/.local/share}"
+      xdg_base_directory()
+      {
+        case ''${1:-} in
+          /*) printf '%s\n' "$1" ;;
+          *) printf '%s\n' "$2" ;;
+        esac
+      }
+
+      home="''${HOME:-/home/user}"
+      data_home=$(xdg_base_directory "''${XDG_DATA_HOME:-}" "$home/.local/share")
     export AUTOLITH_SBCL="${runtime}/bin/sbcl"
     export AUTOLITH_SBCL_SOURCE_ROOT="${sbclSource}"
     export COLORLISP_NATIVE_LIBRARY="${colorlispNativeLibrary}/lib/libcolorlisp-tree-sitter${sharedLibrary}"

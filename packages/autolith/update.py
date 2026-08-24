@@ -1,8 +1,9 @@
 #!/usr/bin/env nix
 #! nix shell --inputs-from .# nixpkgs#python3 --command python3
 
-"""Update Autolith's source and Nix build definition."""
+"""Update autolith and re-vendor its upstream nix/package.nix."""
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -15,94 +16,58 @@ from updater import (
     fetch_text,
     should_update,
 )
+from updater.nix import run_command
 
 PACKAGE_DIR = Path(__file__).parent
-SOURCE_NIX = PACKAGE_DIR / "source.nix"
-UPSTREAM_PACKAGE_NIX = PACKAGE_DIR / "upstream-package.nix"
+HASHES = PACKAGE_DIR / "hashes.json"
+UPSTREAM_NIX = PACKAGE_DIR / "upstream-package.nix"
 OWNER = "lambda-symbolics"
 REPO = "autolith"
 
 
-def _current_version() -> str:
-    match = re.search(r'version\s*=\s*"([^"]+)"', SOURCE_NIX.read_text())
-    if not match:
-        message = "Could not find Autolith version in source.nix"
-        raise ValueError(message)
-    return match.group(1)
+def vendor_upstream_nix(tag: str) -> str:
+    """Fetch upstream's package.nix and strip the parts that need IFD.
 
+    Upstream reads the fff commit and an exact SBCL version/hash pin from
+    files inside `src`; inline the former and drop the latter so we can
+    follow nixpkgs' SBCL.
+    """
+    base = f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{tag}"
+    text = fetch_text(f"{base}/nix/package.nix")
+    fff_commit = fetch_text(f"{base}/native/fff/commit").strip()
 
-def _source_nix(version: str, hash_value: str) -> str:
-    return f"""{{ fetchFromGitHub }}:
-
-let
-  version = "{version}";
-in
-{{
-  inherit version;
-
-  src = fetchFromGitHub {{
-    owner = "{OWNER}";
-    repo = "{REPO}";
-    tag = "v${{version}}";
-    hash = "{hash_value}";
-  }};
-}}
-"""
-
-
-def _normalize_package(package: str, fff_source_commit: str) -> str:
-    package, count = re.subn(
-        r"  expectedSbclVersion = .*?\n  expectedSbclSourceHash = .*?\n",
+    text = re.sub(
+        r"^  fffSourceCommit = .*$",
+        f'  fffSourceCommit = "{fff_commit}";',
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    # sbclSource: drop the hash comparison block, keep the extraction.
+    text = re.sub(
+        r"\n    actual_hash=.*?\n    fi\n", "\n", text, count=1, flags=re.DOTALL
+    )
+    text = re.sub(
+        r"^.*expectedSbcl(Version|SourceHash) = .*\n", "", text, flags=re.MULTILINE
+    )
+    text = re.sub(
+        r"^assert pkgs\.sbcl\.version == expectedSbclVersion;\n",
         "",
-        package,
+        text,
+        flags=re.MULTILINE,
     )
-    if count != 1:
-        message = "Could not remove Autolith's SBCL version pin"
-        raise ValueError(message)
-
-    package, count = re.subn(
-        r"  fffSourceCommit = .*?\n",
-        f'  fffSourceCommit = "{fff_source_commit}";\n',
-        package,
-    )
-    if count != 1:
-        message = "Could not inline Autolith's fff source commit"
-        raise ValueError(message)
-
-    replacement = """  sbclSource = pkgs.runCommand "autolith-sbcl-${pkgs.sbcl.version}-source" {
-    nativeBuildInputs = [ pkgs.bzip2 pkgs.coreutils pkgs.gnutar ];
-  } ''
-    mkdir -p "$out"
-    tar -xjf ${pkgs.sbcl.src} --strip-components=1 -C "$out"
-    test -f "$out/version.lisp-expr"
-    test -f "$out/src/code/list.lisp"
-  '';
-
-  # Sandboxing"""
-    package, count = re.subn(
-        r'  sbclSource = pkgs\.runCommand "autolith-sbcl-\$\{expectedSbclVersion\}-source" \{.*?\n  \'\';\n\n  # Sandboxing',
-        replacement,
-        package,
-        flags=re.DOTALL,
-    )
-    if count != 1:
-        message = "Could not relax Autolith's SBCL source check"
-        raise ValueError(message)
-
-    package = package.replace(
-        '"autolith-image-validation-${expectedSbclVersion}"',
-        '"autolith-image-validation-${pkgs.sbcl.version}"',
-    )
-    package = package.replace("assert pkgs.sbcl.version == expectedSbclVersion;\n", "")
-    if "expectedSbcl" in package:
-        message = "Autolith's SBCL pin was not fully removed"
-        raise ValueError(message)
-    return package
+    text = text.replace("${expectedSbclVersion}", "${pkgs.sbcl.version}")
+    text = re.sub(r"\bstdenv\.is(Linux|Darwin)\b", r"stdenv.hostPlatform.is\1", text)
+    if "expectedSbcl" in text:
+        msg = "upstream package.nix changed shape; adjust vendor_upstream_nix()"
+        raise ValueError(msg)
+    return text
 
 
 def main() -> None:
-    """Update Autolith to the latest tagged release."""
-    current = _current_version()
+    """Update to the latest tagged release."""
+    data = json.loads(HASHES.read_text())
+    current = data["version"]
     latest = fetch_github_latest_release(OWNER, REPO)
     print(f"Current: {current}, Latest: {latest}")
     if not should_update(current, latest):
@@ -110,20 +75,17 @@ def main() -> None:
         return
 
     tag = f"v{latest}"
-    base_url = f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{tag}"
-    print("Fetching upstream Nix package...")
-    upstream_package = fetch_text(f"{base_url}/nix/package.nix")
-    fff_source_commit = fetch_text(f"{base_url}/native/fff/commit").strip()
-    upstream_package = _normalize_package(upstream_package, fff_source_commit)
-
-    print("Calculating source hash...")
-    source_hash = calculate_url_hash(
+    upstream = vendor_upstream_nix(tag)
+    src_hash = calculate_url_hash(
         f"https://github.com/{OWNER}/{REPO}/archive/refs/tags/{tag}.tar.gz",
         unpack=True,
     )
-
-    SOURCE_NIX.write_text(_source_nix(latest, source_hash))
-    UPSTREAM_PACKAGE_NIX.write_text(upstream_package)
+    UPSTREAM_NIX.write_text(upstream)
+    # Keep the vendored file in treefmt's style so updates show real diffs only.
+    run_command(["nix", "fmt", "--", str(UPSTREAM_NIX)], cwd=PACKAGE_DIR.parent.parent)
+    HASHES.write_text(
+        json.dumps({"version": latest, "hash": src_hash}, indent=2) + "\n"
+    )
     print(f"Updated to {latest}")
 
 
