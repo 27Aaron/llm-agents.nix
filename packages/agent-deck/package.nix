@@ -1,11 +1,13 @@
 {
   lib,
+  stdenv,
   flake,
   buildGoModule,
   fetchFromGitHub,
   versionCheckHook,
   versionCheckHomeHook,
   git,
+  lsof,
 }:
 
 buildGoModule rec {
@@ -47,9 +49,27 @@ buildGoModule rec {
   # output with a 300ms freshness timeout; on loaded CI builders the read
   # races past the window and the transcript comes back empty. Timing-sensitive;
   # skip it.
+  # TestCleanup{ExcludesLiveProcessCWDInside,RevalidatesRealityBeforeRemoval,
+  # ForceCannotOverrideRealityExclusions} run lsof against live processes,
+  # which the darwin sandbox denies.
   checkFlags = [
     "-short"
-    "-skip=TestValidatePluginFlags_TelegramForkAccepted|TestValidatePluginFlags_EmptyCatalogActionableError|TestVerifyPromptConsumedAfterLaunch_UnsentFirstWindow_RetryThenConsumed_OneRetry_NoWarning|TestWaitForFreshOutput_UniquePeerStillReads"
+    (
+      "-skip="
+      + lib.concatStringsSep "|" (
+        [
+          "TestValidatePluginFlags_TelegramForkAccepted"
+          "TestValidatePluginFlags_EmptyCatalogActionableError"
+          "TestVerifyPromptConsumedAfterLaunch_UnsentFirstWindow_RetryThenConsumed_OneRetry_NoWarning"
+          "TestWaitForFreshOutput_UniquePeerStillReads"
+        ]
+        ++ lib.optionals stdenv.hostPlatform.isDarwin [
+          "TestCleanupExcludesLiveProcessCWDInside"
+          "TestCleanupRevalidatesRealityBeforeRemoval"
+          "TestCleanupForceCannotOverrideRealityExclusions"
+        ]
+      )
+    )
   ];
 
   preCheck = ''
@@ -61,6 +81,9 @@ buildGoModule rec {
     export HOME=$(mktemp -d -p /tmp)
     export PATH="${git}/bin:$PATH"
   '';
+
+  # worktree cleanup safety tests probe live processes via lsof on darwin
+  nativeCheckInputs = [ lsof ];
 
   doInstallCheck = true;
 
