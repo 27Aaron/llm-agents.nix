@@ -1,5 +1,6 @@
 {
   lib,
+  stdenv,
   flake,
   buildGoModule,
   buildNpmPackage,
@@ -116,7 +117,8 @@ buildGoModule {
   postInstall = ''
     wrapProgram $out/bin/agentsview \
       --set AGENTSVIEW_TELEMETRY_ENABLED 0
-
+  ''
+  + lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     # The source tree has the skill only as a Go template. `agentsview skills
     # install` renders it per harness and adds a header recording a hash of
     # the body, which `agentsview skills list` compares against a fresh render
