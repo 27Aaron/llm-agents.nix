@@ -1,0 +1,13 @@
+{
+  "version": "cli-0.10.2-d7b2684",
+  "urls": {
+    "x86_64-linux": "https://github.com/OpenRouterLabs/ori-releases/releases/download/cli-0.10.2-d7b2684/ori-linux-x64",
+    "aarch64-linux": "https://github.com/OpenRouterLabs/ori-releases/releases/download/cli-0.10.2-d7b2684/ori-linux-arm64",
+    "aarch64-darwin": "https://github.com/OpenRouterLabs/ori-releases/releases/download/cli-0.10.2-d7b2684/ori-darwin-arm64"
+  },
+  "hashes": {
+    "x86_64-linux": "sha256-UjhP+/EdAHRjmk3kvLt00BYIe7MSqqys/kg5v0rI6is=",
+    "aarch64-linux": "sha256-I5/IR1sIdaNGzUCXWW0jVdHfmowdCplnQEtSxLxaeCY=",
+    "aarch64-darwin": "sha256-uSHqohd7UMJYcG+7LTo3i+DDinqQIeWtSvMJVzGX9X8="
+  }
+}
