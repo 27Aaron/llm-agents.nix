@@ -17,94 +17,6 @@
   versionCheckHomeHook,
 }:
 
-let
-  # prime-agent-runtime 0.8.0 requires mcp>=2,<3 and nixpkgs still ships 1.29.0.
-  # Build the 2.0.0 SDK and its newly split-out mcp-types wire package from the
-  # one upstream tag, behind an overridden Python package set so the runtime,
-  # the bundled skills, and the kernel environment all resolve the same mcp.
-  # Drop this block once nixpkgs carries mcp 2.x.
-  mcpVersion = "2.0.0";
-
-  mcpSrc = fetchFromGitHub {
-    owner = "modelcontextprotocol";
-    repo = "python-sdk";
-    tag = "v${mcpVersion}";
-    hash = "sha256-baeceVB9PC+f3vQO1AaDHflOJ7oD7u7ylXUkVvusT/o=";
-  };
-
-  python = python3.override {
-    self = python;
-    packageOverrides = final: prev: {
-      mcp-types = prev.buildPythonPackage {
-        pname = "mcp-types";
-        version = mcpVersion;
-        pyproject = true;
-        src = "${mcpSrc}/src/mcp-types";
-
-        # uv-dynamic-versioning reads the version out of git history, which a
-        # source archive does not carry.
-        env.UV_DYNAMIC_VERSIONING_BYPASS = mcpVersion;
-
-        build-system = [
-          prev.hatchling
-          prev.uv-dynamic-versioning
-        ];
-
-        dependencies = [
-          prev.pydantic
-          prev.typing-extensions
-        ];
-
-        pythonImportsCheck = [ "mcp_types" ];
-      };
-
-      mcp = prev.mcp.overridePythonAttrs (old: {
-        version = mcpVersion;
-        src = mcpSrc;
-
-        env = (old.env or { }) // {
-          UV_DYNAMIC_VERSIONING_BYPASS = mcpVersion;
-        };
-
-        # The 1.x darwin flake patch targets a test file 2.0.0 no longer ships.
-        postPatch = "";
-
-        # 2.0.0 dropped pydantic-settings, httpx and httpx-sse for httpx2, and
-        # split its wire types into mcp-types.
-        pythonRelaxDeps = [ ];
-        dependencies = [
-          prev.anyio
-          prev.httpx2
-          prev.jsonschema
-          prev.opentelemetry-api
-          prev.pydantic
-          prev.pyjwt
-          prev.python-multipart
-          prev.sse-starlette
-          prev.starlette
-          prev.typing-extensions
-          prev.typing-inspection
-          prev.uvicorn
-          final.mcp-types
-        ];
-
-        optional-dependencies = {
-          cli = [
-            prev.python-dotenv
-            prev.typer
-          ];
-          rich = [ prev.rich ];
-        };
-
-        # The 1.x disabledTests list is written against a suite 2.0.0 reorganized.
-        doCheck = false;
-        nativeCheckInputs = [ ];
-        disabledTests = [ ];
-      });
-    };
-  };
-in
-
 buildNpmPackage (finalAttrs: {
   npmDepsFetcherVersion = 2;
   pname = "prime-agent";
@@ -191,18 +103,20 @@ buildNpmPackage (finalAttrs: {
   passthru = {
     category = "AI Coding Agents";
 
-    primeAgentRuntime = python.pkgs.buildPythonPackage {
+    primeAgentRuntime = python3.pkgs.buildPythonPackage {
       pname = "prime-agent-runtime";
       version = "0.1.0";
       src = "${finalAttrs.src}/prime-agent-runtime";
       pyproject = true;
-      build-system = [ python.pkgs.hatchling ];
-      dependencies = with python.pkgs; [
+      build-system = [ python3.pkgs.hatchling ];
+      dependencies = with python3.pkgs; [
         ipykernel
         mcp
         nest-asyncio
         tyro
       ];
+      # Pins mcp>=2 but rlm/mcp_base.py explicitly supports the 1.x client API.
+      pythonRelaxDeps = [ "mcp" ];
     };
 
     pythonSkills =
@@ -214,11 +128,11 @@ buildNpmPackage (finalAttrs: {
             pname ? directory,
             dependencies ? [ ],
           }:
-          python.pkgs.buildPythonPackage {
+          python3.pkgs.buildPythonPackage {
             inherit pname version dependencies;
             src = "${finalAttrs.src}/packages/coding-agent/skills/${directory}";
             pyproject = true;
-            build-system = [ python.pkgs.hatchling ];
+            build-system = [ python3.pkgs.hatchling ];
           };
         runtime = finalAttrs.passthru.primeAgentRuntime;
       in
@@ -237,7 +151,7 @@ buildNpmPackage (finalAttrs: {
           directory = "attach-image";
           version = "0.1.0";
           pname = "prime-agent-skill-attach-image";
-          dependencies = with python.pkgs; [
+          dependencies = with python3.pkgs; [
             pillow
             runtime
           ];
@@ -258,7 +172,7 @@ buildNpmPackage (finalAttrs: {
           directory = "linear";
           version = "0.1.0";
           pname = "prime-agent-skill-linear";
-          dependencies = with python.pkgs; [
+          dependencies = with python3.pkgs; [
             httpx
             mcp
             runtime
@@ -268,7 +182,7 @@ buildNpmPackage (finalAttrs: {
           directory = "notion";
           version = "0.1.0";
           pname = "prime-agent-skill-notion";
-          dependencies = with python.pkgs; [
+          dependencies = with python3.pkgs; [
             httpx
             mcp
             runtime
@@ -286,14 +200,14 @@ buildNpmPackage (finalAttrs: {
           directory = "websearch";
           version = "0.1.0";
           pname = "prime-agent-skill-websearch";
-          dependencies = with python.pkgs; [
+          dependencies = with python3.pkgs; [
             httpx
             runtime
           ];
         })
       ];
 
-    pythonRuntime = python.withPackages (
+    pythonRuntime = python3.withPackages (
       ps:
       (with ps; [
         beautifulsoup4
