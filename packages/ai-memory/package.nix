@@ -4,7 +4,7 @@
   fetchFromGitHub,
   rustPlatform,
   installShellFiles,
-  bashNonInteractive,
+  makeBinaryWrapper,
   coreutils,
   curl,
   findutils,
@@ -16,8 +16,9 @@
 }:
 
 let
+  # Tools the POSIX hook scripts call; they run from agent configs with
+  # whatever PATH the agent happens to have.
   hookPath = lib.makeBinPath [
-    bashNonInteractive
     coreutils
     curl
     findutils
@@ -48,42 +49,34 @@ rustPlatform.buildRustPackage (finalAttrs: {
     "ai-memory"
   ];
 
+  # build.rs would otherwise try to download the tailwind CLI for the web UI.
   env.TAILWIND_SKIP = "1";
 
+  # `install-hooks`/`setup-agent` probe fixed FHS locations for the bundled
+  # hook scripts; point the native-package candidate at our share/ dir.
   postPatch = ''
-    # Git is part of the CLI's runtime contract (wiki history, repository
-    # routing, bootstrap, and managed workstreams). Use its Nix store path so
-    # installed native hook commands do not depend on an ambient PATH.
-    substituteInPlace \
-      crates/ai-memory-cli/src/commands/hook_capture.rs \
-      crates/ai-memory-consolidate/src/bootstrap.rs \
-      crates/ai-memory-hooks/src/router.rs \
-      crates/ai-memory-wiki/src/git.rs \
-      crates/ai-memory-workstream/src/repository.rs \
-      --replace-fail 'Command::new("git")' 'Command::new("${lib.getExe git}")'
+    substituteInPlace crates/ai-memory-cli/src/commands/{install_hooks,setup_agent}.rs \
+      --replace-fail '"/usr/share/ai-memory/hooks/{sub}"' "\"$out/share/ai-memory/hooks/{sub}\""
+    substituteInPlace crates/ai-memory-cli/src/commands/install_hooks.rs \
+      --replace-fail '"/usr/share/ai-memory/hooks/claude-code"' "\"$out/share/ai-memory/hooks/claude-code\""
   '';
 
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [
+    installShellFiles
+    makeBinaryWrapper
+  ];
 
   postInstall = ''
-    # Lifecycle hook scripts are runtime assets. The CLI probes hooks/ beside
-    # its executable, while the canonical copy belongs under share/.
     mkdir -p $out/share/ai-memory
     cp -r hooks $out/share/ai-memory/
-    find $out/share/ai-memory/hooks -type f -name '*.ps1' -delete
-    find $out/share/ai-memory/hooks -depth -type d -empty -delete
 
-    # Hooks run later from agent configuration, outside the main process.
-    # Give every entry point a NixOS-safe interpreter and tool PATH before it
-    # calls dirname to find the shared helper.
+    # Hook entry points are `#!/bin/sh` and locate _lib.sh via dirname before
+    # anything else runs, so PATH has to be fixed up in the shebang line.
     for hook in $out/share/ai-memory/hooks/*/*.sh; do
-      substituteInPlace "$hook" \
-        --replace-fail \
-          '#!/bin/sh' \
-          $'#!${lib.getExe bashNonInteractive}\nPATH=${hookPath}:$PATH\nexport PATH'
+      substituteInPlace "$hook" --replace-fail '#!/bin/sh' \
+        '#!/bin/sh
+    PATH=${hookPath}:$PATH'
     done
-
-    ln -s ../share/ai-memory/hooks $out/bin/hooks
 
     installShellCompletion --cmd ai-memory \
       --bash <($out/bin/ai-memory completions bash) \
@@ -91,12 +84,17 @@ rustPlatform.buildRustPackage (finalAttrs: {
       --zsh <($out/bin/ai-memory completions zsh)
   '';
 
+  # git is shelled out to from several crates (wiki history, repo routing,
+  # workstreams); wrap instead of patching every Command::new("git").
+  postFixup = ''
+    wrapProgram $out/bin/ai-memory --prefix PATH : ${lib.makeBinPath [ git ]}
+  '';
+
   doInstallCheck = true;
   nativeInstallCheckInputs = [
     versionCheckHook
     versionCheckHomeHook
   ];
-  versionCheckProgramArg = "--version";
 
   passthru.category = "Memory & Code Intelligence";
 
@@ -108,10 +106,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
     sourceProvenance = with lib.sourceTypes; [ fromSource ];
     maintainers = with flake.lib.maintainers; [ mulatta ];
     mainProgram = "ai-memory";
-    platforms = [
-      "x86_64-linux"
-      "aarch64-linux"
-      "aarch64-darwin"
-    ];
+    platforms = lib.platforms.unix;
   };
 })
