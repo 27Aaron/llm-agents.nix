@@ -5,6 +5,7 @@
   mkUpdater,
   platformSource,
   wrapBuddy,
+  makeBinaryWrapper,
 }:
 
 let
@@ -25,11 +26,15 @@ stdenv.mkDerivation {
   dontUnpack = true;
   dontStrip = true;
 
-  nativeBuildInputs = lib.optionals stdenv.hostPlatform.isLinux [ wrapBuddy ];
+  nativeBuildInputs = [
+    makeBinaryWrapper
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [ wrapBuddy ];
 
   installPhase = ''
     runHook preInstall
     install -Dm755 $src $out/bin/ori
+    wrapProgram $out/bin/ori --set-default ORI_TELEMETRY 0
     runHook postInstall
   '';
 
