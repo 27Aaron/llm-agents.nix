@@ -12,6 +12,7 @@ pkgs.mkShellNoCC {
     pkgs.gnugrep
     pkgs.gnused
     pkgs.jq
+    pkgs.mypy
     pkgs.nix-update
     pkgs.nodejs
     pkgs.nushell
