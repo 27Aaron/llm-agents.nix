@@ -45,12 +45,12 @@ python.pkgs.buildPythonApplication rec {
     watchdog
   ];
 
-  # The parser probe runs `sys.executable -I`, which lacks the wrapper's
+  # The parser probe spawns `sys.executable`, which lacks the wrapper's
   # sys.path; use an interpreter that ships the language pack (#7216).
   postPatch = ''
     substituteInPlace code_review_graph/parser.py \
-      --replace-fail 'sys.executable, "-I"' \
-        '"${python.withPackages (ps: [ ps.tree-sitter-language-pack ])}/bin/python", "-I"'
+      --replace-fail '[sys.executable, "-c", code, grammar]' \
+        '["${python.withPackages (ps: [ ps.tree-sitter-language-pack ])}/bin/python", "-c", code, grammar]'
   '';
 
   # Relax version constraints — nixpkgs versions are newer but compatible.
