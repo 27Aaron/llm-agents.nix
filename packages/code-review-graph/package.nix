@@ -50,7 +50,9 @@ python.pkgs.buildPythonApplication rec {
   postPatch = ''
     substituteInPlace code_review_graph/parser.py \
       --replace-fail '[sys.executable, "-c", code, grammar]' \
-        '["${python.withPackages (ps: [ ps.tree-sitter-language-pack ])}/bin/python", "-c", code, grammar]'
+        '["${
+          python.withPackages (ps: [ ps.tree-sitter-language-pack ])
+        }/bin/python", "-c", code, grammar]'
   '';
 
   # Relax version constraints — nixpkgs versions are newer but compatible.
