@@ -20,7 +20,7 @@ pkgs.mkShellNoCC {
     perSystem.self.formatter
   ]
   # Sandbox for updater code (.github/ci/update.py)
-  ++ pkgs.lib.optional pkgs.stdenv.isLinux pkgs.bubblewrap;
+  ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.bubblewrap;
 
   shellHook = ''
     export PRJ_ROOT=$PWD
