@@ -88,9 +88,11 @@ rustPlatform.buildRustPackage (finalAttrs: {
         --fish <("$out/bin/herdr" completion fish) \
         --zsh <("$out/bin/herdr" completion zsh)
     ''
+    # Ship the per-agent hook/plugin sources so users can wire them up
+    # declaratively (e.g. home-manager) instead of running `herdr integrate`.
     + ''
       install -d "$out/share/herdr"
-      cp -r --no-preserve=mode ${finalAttrs.src}/src/integration/assets "$out/share/herdr/integrations"
+      cp -r src/integration/assets "$out/share/herdr/integrations"
       find "$out/share/herdr/integrations" -name '*.test.ts' -delete
     '';
 
