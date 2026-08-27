@@ -7,16 +7,16 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "tgrab";
-  version = "0.1.0";
+  version = "0.1.1";
 
   src = fetchFromGitHub {
     owner = "ryoppippi";
     repo = "tgrab";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-QXLHZ0HztxUcANgzGlQ8Wg9nOnTB7Lk8cCBVH6f5a8E=";
+    hash = "sha256-N5zZ6QgdDDIO7KlZsU6I7r+cgLXYKjfgYqBCzUJjXpQ=";
   };
 
-  cargoHash = "sha256-9/wVARIR2nsiNotxFifYkzbVf8P2oAxz13jx86DAVrk=";
+  cargoHash = "sha256-r2IiZ2ud0ABQrmGxtqZRu2no9lQABoIKr5g0hqmjgDI=";
 
   env.RUSTFLAGS = "--cfg reqwest_unstable";
 
