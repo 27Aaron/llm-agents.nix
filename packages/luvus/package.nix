@@ -60,9 +60,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
     "--skip=app::settings::tests::enter_routes_an_installed_theme_through_removal"
     # opens the git dashboard on the build dir, which is not a repository
     "--skip=app::diff::tests::dashboard_diff_click_opens_a_tab_then_reuses_it"
-    # navigates the folder picker to $HOME, which does not exist in the sandbox;
+    # expect $HOME to exist, which it does not in the sandbox;
     # providing one makes tests that persist config under it race each other
     "--skip=app::picker::tests::home_row_and_go_to_footer_are_interactive"
+    "--skip=app::tests::spawn_cwds_skips_missing_dirs_and_anchors_on_home"
   ];
 
   postFixup = ''
