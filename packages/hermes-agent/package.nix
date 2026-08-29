@@ -187,6 +187,7 @@ let
       # Core
       openai
       anthropic
+      snowballstemmer
       python-dotenv
       fire
       httpx
