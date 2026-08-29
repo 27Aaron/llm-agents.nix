@@ -209,6 +209,7 @@ python.pkgs.buildPythonApplication rec {
     python-dotenv
     pyyaml
     requests
+    rfc8785
     rich
     sentry-sdk
     setproctitle
